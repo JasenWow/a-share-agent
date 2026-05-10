@@ -1,0 +1,6 @@
+name: portfolio-manager
+description: A-share portfolio optimization and risk management agent
+skills:
+  - path: ../../plugins/vertical-plugins/a-share-analysis/skills/portfolio-optimize
+  - path: ../../plugins/vertical-plugins/a-share-analysis/skills/xlsx-author
+system_prompt: ../../plugins/agent-plugins/portfolio-manager/agents/portfolio-manager.md

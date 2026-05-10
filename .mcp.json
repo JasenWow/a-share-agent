@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "akshare": {
+      "type": "http",
+      "url": "http://localhost:8000/mcp",
+      "description": "AKShare A-share data — realtime quotes, historical OHLCV, financial statements, northbound flow, dragon-tiger list"
+    },
+    "tushare": {
+      "type": "http",
+      "url": "http://localhost:8001/mcp",
+      "description": "Tushare Pro A-share data — high-quality historical data, financial statements, index weights, concept sectors",
+      "env": {
+        "TUSHARE_TOKEN": "${TUSHARE_TOKEN}"
+      }
+    },
+    "internal-store": {
+      "type": "http",
+      "url": "http://localhost:8002/mcp",
+      "description": "Local data store — cache query, backtest results, portfolio state persistence"
+    }
+  }
+}

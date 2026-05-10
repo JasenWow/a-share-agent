@@ -1,0 +1,6 @@
+name: stock-screener
+description: A-share factor-based stock screening agent
+skills:
+  - path: ../../plugins/vertical-plugins/a-share-analysis/skills/factor-screen
+  - path: ../../plugins/vertical-plugins/a-share-analysis/skills/xlsx-author
+system_prompt: ../../plugins/agent-plugins/stock-screener/agents/stock-screener.md

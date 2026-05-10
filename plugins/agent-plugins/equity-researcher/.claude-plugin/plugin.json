@@ -1,0 +1,8 @@
+{
+  "name": "equity-researcher",
+  "version": "0.1.0",
+  "description": "Deep-dive A-share equity research agent. Three-statement analysis, industry comparison, PE/PB band valuation, catalyst tracking.",
+  "author": {
+    "name": "A-Share Quant"
+  }
+}

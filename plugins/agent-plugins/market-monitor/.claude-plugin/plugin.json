@@ -1,0 +1,8 @@
+{
+  "name": "market-monitor",
+  "version": "0.1.0",
+  "description": "A-share market condition monitoring. Market breadth, northbound flow, dragon-tiger list, sector rotation, regime detection.",
+  "author": {
+    "name": "A-Share Quant"
+  }
+}

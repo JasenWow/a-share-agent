@@ -1,0 +1,43 @@
+{
+  "name": "a-share-agents",
+  "owner": {
+    "name": "A-Share Quant"
+  },
+  "plugins": [
+    {
+      "name": "a-share-analysis",
+      "source": "plugins/vertical-plugins/a-share-analysis",
+      "description": "A-share quantitative analysis skills — factor screening, financial analysis, factor research, backtesting, portfolio optimization, market monitoring"
+    },
+    {
+      "name": "stock-screener",
+      "source": "plugins/agent-plugins/stock-screener",
+      "description": "Multi-factor A-share stock screening agent"
+    },
+    {
+      "name": "equity-researcher",
+      "source": "plugins/agent-plugins/equity-researcher",
+      "description": "Deep-dive A-share equity research agent"
+    },
+    {
+      "name": "factor-analyst",
+      "source": "plugins/agent-plugins/factor-analyst",
+      "description": "A-share factor research and validation agent"
+    },
+    {
+      "name": "backtester",
+      "source": "plugins/agent-plugins/backtester",
+      "description": "A-share strategy backtesting agent"
+    },
+    {
+      "name": "portfolio-manager",
+      "source": "plugins/agent-plugins/portfolio-manager",
+      "description": "A-share portfolio optimization and risk management agent"
+    },
+    {
+      "name": "market-monitor",
+      "source": "plugins/agent-plugins/market-monitor",
+      "description": "A-share market condition monitoring agent"
+    }
+  ]
+}

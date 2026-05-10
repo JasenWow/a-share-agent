@@ -1,0 +1,8 @@
+{
+  "name": "portfolio-manager",
+  "version": "0.1.0",
+  "description": "A-share portfolio construction and management. Optimization (MVO, HRP, Risk Parity), position sizing, risk monitoring, rebalancing signals.",
+  "author": {
+    "name": "A-Share Quant"
+  }
+}

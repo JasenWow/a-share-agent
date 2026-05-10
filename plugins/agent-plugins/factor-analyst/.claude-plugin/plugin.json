@@ -1,0 +1,8 @@
+{
+  "name": "factor-analyst",
+  "version": "0.1.0",
+  "description": "A-share factor research agent. IC/ICIR analysis, industry+cap neutralization, walk-forward testing, factor correlation diagnostics.",
+  "author": {
+    "name": "A-Share Quant"
+  }
+}

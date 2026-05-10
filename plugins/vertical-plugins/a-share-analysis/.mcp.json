@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "akshare": {
+      "type": "http",
+      "url": "http://localhost:8000/mcp",
+      "description": "AKShare A-share data connector"
+    },
+    "tushare": {
+      "type": "http",
+      "url": "http://localhost:8001/mcp",
+      "description": "Tushare Pro A-share data connector",
+      "env": {
+        "TUSHARE_TOKEN": "${TUSHARE_TOKEN}"
+      }
+    }
+  }
+}

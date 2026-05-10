@@ -1,0 +1,156 @@
+#!/usr/bin/env python3
+"""
+Environment check script — verify all dependencies and configuration are ready.
+
+Usage:
+  python scripts/check.py
+"""
+
+import json
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).parent.parent
+
+
+def check_python_packages() -> list[str]:
+    """Check Python package dependencies."""
+    issues = []
+    required = ["akshare", "tushare", "pandas", "openpyxl", "mcp", "fastapi"]
+    for pkg in required:
+        try:
+            __import__(pkg)
+        except ImportError:
+            issues.append(f"MISSING: {pkg} (pip install {pkg})")
+    return issues
+
+
+def check_mcp_servers() -> list[str]:
+    """Check MCP configuration files."""
+    issues = []
+    mcp_config = ROOT / ".mcp.json"
+    if not mcp_config.exists():
+        issues.append("MISSING: .mcp.json at project root")
+        return issues
+
+    with open(mcp_config) as f:
+        config = json.load(f)
+
+    required_servers = ["akshare", "tushare", "internal-store"]
+    servers = config.get("mcpServers", {})
+    for srv in required_servers:
+        if srv not in servers:
+            issues.append(f"MISSING: MCP server '{srv}' in .mcp.json")
+        elif servers[srv].get("type") != "http":
+            issues.append(f"WARN: MCP server '{srv}' type should be 'http'")
+
+    return issues
+
+
+def check_plugin_structure() -> list[str]:
+    """Check plugin directory structure."""
+    issues = []
+
+    # Check vertical plugin
+    vp = ROOT / "plugins" / "vertical-plugins" / "a-share-analysis"
+    if not vp.exists():
+        issues.append(f"MISSING: {vp}")
+    else:
+        for required in [".claude-plugin", ".mcp.json", "skills", "commands"]:
+            if not (vp / required).exists():
+                issues.append(f"MISSING: {vp / required}")
+
+    # Check agent plugins
+    agents = [
+        "stock-screener",
+        "equity-researcher",
+        "factor-analyst",
+        "backtester",
+        "portfolio-manager",
+        "market-monitor",
+    ]
+    ap = ROOT / "plugins" / "agent-plugins"
+    for agent in agents:
+        agent_dir = ap / agent
+        if not agent_dir.exists():
+            issues.append(f"MISSING: agent plugin {agent_dir}")
+            continue
+        for required in [".claude-plugin", "agents"]:
+            if not (agent_dir / required).exists():
+                issues.append(f"MISSING: {agent_dir / required}")
+
+    return issues
+
+
+def check_mcp_servers_code() -> list[str]:
+    """Check MCP server directories."""
+    issues = []
+    servers = ["akshare-server", "tushare-server", "internal-store"]
+    for srv in servers:
+        srv_dir = ROOT / "mcp-servers" / srv
+        if not srv_dir.exists():
+            issues.append(f"MISSING: MCP server directory {srv_dir}")
+            continue
+        if not (srv_dir / "server.py").exists():
+            issues.append(f"MISSING: {srv_dir / 'server.py'}")
+        if not (srv_dir / "pyproject.toml").exists():
+            issues.append(f"MISSING: {srv_dir / 'pyproject.toml'}")
+    return issues
+
+
+def check_data_dir() -> list[str]:
+    """Check data directory."""
+    issues = []
+    data_dir = ROOT / "data"
+    if not data_dir.exists():
+        issues.append(f"MISSING: {data_dir} (will be auto-created on first run)")
+    return issues
+
+
+def check_env_vars() -> list[str]:
+    """Check environment variables."""
+    import os
+
+    issues = []
+    token = os.environ.get("TUSHARE_TOKEN", "")
+    if not token:
+        issues.append("WARN: TUSHARE_TOKEN not set (optional for AKShare-only mode)")
+    return issues
+
+
+def main():
+    print("A-Share Agents Environment Check")
+    print("=" * 50)
+
+    all_issues = []
+
+    checks = [
+        ("Python Packages", check_python_packages),
+        ("MCP Configuration", check_mcp_servers),
+        ("Plugin Structure", check_plugin_structure),
+        ("MCP Server Code", check_mcp_servers_code),
+        ("Data Directory", check_data_dir),
+        ("Environment Variables", check_env_vars),
+    ]
+
+    for name, check_fn in checks:
+        print(f"\n[{name}]")
+        issues = check_fn()
+        all_issues.extend(issues)
+        if issues:
+            for issue in issues:
+                print(f"  - {issue}")
+        else:
+            print("  OK")
+
+    print(f"\n{'=' * 50}")
+    if all_issues:
+        print(f"Found {len(all_issues)} issue(s). Fix before proceeding.")
+        sys.exit(1)
+    else:
+        print("All checks passed!")
+        sys.exit(0)
+
+
+if __name__ == "__main__":
+    main()

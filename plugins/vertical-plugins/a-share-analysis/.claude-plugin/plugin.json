@@ -1,0 +1,8 @@
+{
+  "name": "a-share-analysis",
+  "version": "0.1.0",
+  "description": "A-share quantitative analysis skills — factor screening, financial analysis, factor research, backtesting, portfolio optimization, market monitoring",
+  "author": {
+    "name": "A-Share Quant"
+  }
+}

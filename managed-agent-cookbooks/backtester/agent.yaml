@@ -1,0 +1,6 @@
+name: backtester
+description: A-share strategy backtesting agent
+skills:
+  - path: ../../plugins/vertical-plugins/a-share-analysis/skills/backtest-engine
+  - path: ../../plugins/vertical-plugins/a-share-analysis/skills/xlsx-author
+system_prompt: ../../plugins/agent-plugins/backtester/agents/backtester.md

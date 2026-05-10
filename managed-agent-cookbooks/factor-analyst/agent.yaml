@@ -1,0 +1,7 @@
+name: factor-analyst
+description: A-share factor research and validation agent
+skills:
+  - path: ../../plugins/vertical-plugins/a-share-analysis/skills/factor-research
+  - path: ../../plugins/vertical-plugins/a-share-analysis/skills/backtest-engine
+  - path: ../../plugins/vertical-plugins/a-share-analysis/skills/xlsx-author
+system_prompt: ../../plugins/agent-plugins/factor-analyst/agents/factor-analyst.md

@@ -1,0 +1,8 @@
+{
+  "name": "backtester",
+  "version": "0.1.0",
+  "description": "A-share strategy backtesting agent with T+1 constraints, real transaction costs, and institutional-grade performance analytics.",
+  "author": {
+    "name": "A-Share Quant"
+  }
+}
