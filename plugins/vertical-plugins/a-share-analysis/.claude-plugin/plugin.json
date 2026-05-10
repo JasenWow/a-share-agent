@@ -4,5 +4,15 @@
   "description": "A-share quantitative analysis skills — factor screening, financial analysis, factor research, backtesting, portfolio optimization, market monitoring",
   "author": {
     "name": "A-Share Quant"
-  }
+  },
+  "skills": [
+    "factor-screen",
+    "financial-analysis",
+    "factor-research",
+    "backtest-engine",
+    "portfolio-optimize",
+    "market-breadth",
+    "xlsx-author",
+    "next-day-predict"
+  ]
 }

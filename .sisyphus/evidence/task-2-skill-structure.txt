@@ -1,0 +1,27 @@
+next-day-predict skill verification:
+
+Files created:
+- SKILL.md (169 lines, 5KB)
+- prompt.md (192 lines, 4.5KB)
+- examples/input-example.md
+- examples/output-example.md
+
+Trigger phrases verified: /predict, prediction, 预测, 明天涨跌, next day predict, 次日预测
+
+Tool references verified:
+- mcp__akshare__stock_zh_a_hist
+- mcp__akshare__stock_zh_a_spot
+- mcp__prediction_store__manage_watchlist
+- mcp__prediction_store__store_prediction
+- mcp__prediction_store__get_predictions
+- mcp__prediction_store__record_actual
+- mcp__prediction_store__get_accuracy_report
+- mcp__prediction_store__get_error_analysis
+
+Sections present:
+- ## Workflow (9 steps)
+- ## Guardrails (5 rules)
+- ## Common Mistakes (5 mistakes)
+- ## Quality Checklist (8 items)
+
+skill registered in plugin.json: next-day-predict

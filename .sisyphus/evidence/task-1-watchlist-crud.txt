@@ -1,0 +1,23 @@
+prediction-store server.py - 607 lines
+pyproject.toml - dependencies: mcp, pandas, fastapi, uvicorn
+test_server.py - 8 test classes with happy+error paths
+README.md - 60 lines, 8 tools documented
+
+All 8 tools verified:
+1. manage_watchlist - add/remove/list, 20 stock limit
+2. store_prediction - upsert, version increment, validation
+3. get_predictions - query with filters
+4. record_actual - auto-computes error
+5. batch_record_actual - loops record_actual
+6. get_accuracy_report - MAE, hit_rate, bias
+7. get_error_analysis - by_stock, by_direction, by_magnitude
+8. get_next_trading_day - Chinese calendar with holidays
+
+Code quality:
+- ruff check: 0 errors
+- lsp_diagnostics: 0 errors
+- import: all 8 tools import OK
+- SQLite schema: 3 tables (predictions, watchlist, trading_calendar)
+- R4 compliant: no imports from akshare/tushare/internal-store
+- Uses logging, not print()
+- Returns list[dict], not None
