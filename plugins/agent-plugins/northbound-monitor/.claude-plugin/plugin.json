@@ -1,0 +1,8 @@
+{
+  "name": "northbound-monitor",
+  "version": "0.1.0",
+  "description": "北向资金监控代理。专注北向资金（沪深港通北向）流向分析，生成纯Markdown分析报告。",
+  "author": {
+    "name": "A-Share Quant"
+  }
+}

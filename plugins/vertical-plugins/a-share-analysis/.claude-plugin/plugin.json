@@ -13,6 +13,7 @@
     "portfolio-optimize",
     "market-breadth",
     "xlsx-author",
-    "next-day-predict"
+    "next-day-predict",
+    "northbound-monitor"
   ]
 }
