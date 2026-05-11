@@ -17,6 +17,11 @@
       "type": "http",
       "url": "http://localhost:8002/mcp",
       "description": "Local data store — cache query, backtest results, portfolio state persistence"
+    },
+    "prediction-store": {
+      "type": "http",
+      "url": "http://localhost:8003/mcp",
+      "description": "Prediction store — next-day return predictions, watchlist management"
     }
   }
 }

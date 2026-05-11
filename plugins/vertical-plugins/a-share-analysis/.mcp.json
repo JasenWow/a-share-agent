@@ -12,6 +12,16 @@
       "env": {
         "TUSHARE_TOKEN": "${TUSHARE_TOKEN}"
       }
+    },
+    "internal-store": {
+      "type": "http",
+      "url": "http://localhost:8002/mcp",
+      "description": "Internal store connector"
+    },
+    "prediction-store": {
+      "type": "http",
+      "url": "http://localhost:8003/mcp",
+      "description": "Prediction store connector"
     }
   }
 }
