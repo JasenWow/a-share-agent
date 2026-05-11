@@ -17,8 +17,7 @@ pro = ts.pro_api(TUSHARE_TOKEN)
 
 mcp = FastMCP(
     name="tushare-a-share",
-    version="0.1.0",
-    description="A-share high-quality data MCP Server based on Tushare Pro",
+    instructions="A-share high-quality data MCP Server based on Tushare Pro. Version 0.1.0",
 )
 
 

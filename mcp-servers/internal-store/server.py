@@ -18,8 +18,7 @@ DB_PATH = DATA_ROOT / "cache" / "meta.db"
 
 mcp = FastMCP(
     name="internal-store",
-    version="0.1.0",
-    description="Local data store MCP Server — cache query, backtest management",
+    instructions="Local data store MCP Server — cache query, backtest management. Version 0.1.0",
 )
 
 

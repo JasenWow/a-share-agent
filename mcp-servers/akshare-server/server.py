@@ -10,8 +10,7 @@ from datetime import datetime, timedelta
 
 mcp = FastMCP(
     name="akshare-a-share",
-    version="0.1.0",
-    description="A-share data MCP Server based on AKShare",
+    instructions="A-share data MCP Server based on AKShare. Version 0.1.0",
 )
 
 
