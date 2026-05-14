@@ -1,0 +1,10 @@
+total 24
+drwxr-xr-x@ 5 jansenwood  staff   160 May 11 21:23 .
+drwxr-xr-x@ 4 jansenwood  staff   128 May 11 00:31 ..
+drwxr-xr-x@ 2 jansenwood  staff    64 May 11 00:30 .claude-plugin
+-rw-r--r--@ 1 jansenwood  staff  4180 May 11 00:31 daily-predictor.md
+-rw-r--r--@ 1 jansenwood  staff  2962 May 11 21:23 system-prompt.md
+---
+      38 /Volumes/data/documents/codes/a-share-agents/plugins/agent-plugins/daily-predictor/agents/daily-predictor.md
+      59 /Volumes/data/documents/codes/a-share-agents/plugins/agent-plugins/daily-predictor/agents/system-prompt.md
+      97 total

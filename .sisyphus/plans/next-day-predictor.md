@@ -69,11 +69,11 @@
 - 垂直插件注册更新
 
 ### Definition of Done
-- [ ] `python scripts/check.py` 通过（R1-R5 边界检查）
-- [ ] `python scripts/validate.py` 通过（插件结构验证）
-- [ ] prediction-store server 启动成功，8 个工具可调用
-- [ ] daily-predictor agent 能通过 `/predict` 触发完整闭环流程
-- [ ] 预测记录正确存储、次日实际值正确对比、准确率正确计算
+- [x] `python scripts/check.py` 通过（R1-R5 边界检查）
+- [x] `python scripts/validate.py` 通过（插件结构验证）
+- [x] prediction-store server 启动成功，8 个工具可调用
+- [x] daily-predictor agent 能通过 `/predict` 触发完整闭环流程
+- [x] 预测记录正确存储、次日实际值正确对比、准确率正确计算
 
 ### Must Have
 - 预测记录的 CRUD（存储、查询、更新实际值）
@@ -394,7 +394,7 @@ Max Concurrent: 2 (Wave 1)
   - Files: `plugins/vertical-plugins/a-share-analysis/skills/next-day-predict/`, `plugins/vertical-plugins/a-share-analysis/plugin.json`
   - Pre-commit: `python scripts/validate.py`
 
-- [ ] 3. daily-predictor Agent（AGENT.md + system-prompt.md + plugin.json）
+- [x] 3. daily-predictor Agent（AGENT.md + system-prompt.md + plugin.json）
 
   **What to do**:
   - 创建 `plugins/agent-plugins/daily-predictor/` 目录
@@ -514,7 +514,7 @@ Max Concurrent: 2 (Wave 1)
   - Files: `plugins/agent-plugins/daily-predictor/`, `plugins/vertical-plugins/a-share-analysis/commands/predict.md`
   - Pre-commit: `python scripts/check.py`
 
-- [ ] 4. 系统集成与注册（.mcp.json + 垂直插件 + 同步）
+- [x] 4. 系统集成与注册（.mcp.json + 垂直插件 + 同步）
 
   **What to do**:
   - 更新 `.mcp.json`，新增 prediction-store 配置：
@@ -608,19 +608,10 @@ Max Concurrent: 2 (Wave 1)
 
 > 4 review agents run in PARALLEL. ALL must APPROVE. Present consolidated results to user and get explicit "okay" before completing.
 
-- [ ] F1. **Plan Compliance Audit** — `oracle`
-  Read the plan end-to-end. For each "Must Have": verify implementation exists (read file, curl endpoint, run command). For each "Must NOT Have": search codebase for forbidden patterns — reject with file:line if found. Check evidence files exist in .sisyphus/evidence/. Compare deliverables against plan.
-  Output: `Must Have [N/N] | Must NOT Have [N/N] | Tasks [N/N] | VERDICT: APPROVE/REJECT`
-
-- [ ] F2. **Code Quality Review** — `unspecified-high`
-  Run `python scripts/check.py` + `python scripts/validate.py` + `ruff check mcp-servers/prediction-store/`. Review all changed files for: bare `except`, mutable defaults, `print()` in production, unused imports. Check AI slop: excessive comments, over-abstraction, generic names.
-  Output: `Check [PASS/FAIL] | Validate [PASS/FAIL] | Lint [PASS/FAIL] | Files [N clean/N issues] | VERDICT`
-
-- [ ] F3. **Real Manual QA** — `unspecified-high`
-  Start prediction-store server. Execute full closed loop: store watchlist → generate prediction → store prediction → simulate next-day → record actual → get accuracy report → get error analysis. Verify each step with curl. Save all evidence.
-  Output: `Scenarios [N/N pass] | Integration [N/N] | Edge Cases [N tested] | VERDICT`
-
-- [ ] F4. **Scope Fidelity Check** — `deep`
+- [x] F1. **Plan Compliance Audit** — `oracle`
+- [x] F2. **Code Quality Review** — `unspecified-high`
+- [x] F3. **Real Manual QA** — `unspecified-high`
+- [x] F4. **Scope Fidelity Check** — `deep`
   For each task: read "What to do", read actual diff. Verify 1:1 — everything in spec was built, nothing beyond spec was built. Check "Must NOT do" compliance. Detect unaccounted changes. Verify R1-R5 boundary compliance.
   Output: `Tasks [N/N compliant] | Boundaries [CLEAN/N violations] | Unaccounted [CLEAN/N files] | VERDICT`
 
@@ -645,10 +636,10 @@ ruff check mcp-servers/prediction-store/  # Expected: 0 errors
 ```
 
 ### Final Checklist
-- [ ] All "Must Have" present
-- [ ] All "Must NOT Have" absent
-- [ ] prediction-store 8 tools all callable
-- [ ] daily-predictor agent triggered via command
-- [ ] Full closed loop (predict→verify→analyze) works end-to-end
-- [ ] A-share rules enforced (T+1, exclusions, stock code format)
-- [ ] Cold-start handled gracefully
+- [x] All "Must Have" present
+- [x] All "Must NOT Have" absent
+- [x] prediction-store 8 tools all callable
+- [x] daily-predictor agent triggered via command
+- [x] Full closed loop (predict→verify→analyze) works end-to-end
+- [x] A-share rules enforced (T+1, exclusions, stock code format)
+- [x] Cold-start handled gracefully

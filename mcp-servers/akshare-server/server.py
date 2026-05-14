@@ -6,6 +6,8 @@ Run: uvicorn server:mcp_app --host 0.0.0.0 --port 8000
 from mcp.server.fastmcp import FastMCP
 import akshare as ak
 import pandas as pd
+import requests
+import json
 from datetime import datetime, timedelta
 
 mcp = FastMCP(
@@ -21,6 +23,89 @@ def df_to_json(df: pd.DataFrame, max_rows: int = 5000) -> list[dict]:
     if len(df) > max_rows:
         df = df.head(max_rows)
     return df.fillna("NaN").to_dict(orient="records")
+
+
+def _tencent_fallback(symbol: str, start_date: str, end_date: str, limit: int = 320) -> list[dict]:
+    """
+    Fetch A-share OHLCV from Tencent API as fallback when Eastmoney fails.
+    symbol: 6-digit stock code, possibly with .SZ/.SH suffix (e.g., "001309.SZ")
+    start_date: "YYYYMMDD"
+    end_date: "YYYYMMDD"
+    limit: number of days to fetch (default 320)
+    """
+    # Strip .SZ or .SH suffix if present
+    clean_symbol = symbol.replace(".SZ", "").replace(".SH", "")
+
+    if clean_symbol.startswith(("0", "3")):
+        market = "sz"
+    elif clean_symbol.startswith("6"):
+        market = "sh"
+    else:
+        return [{"error": f"Unsupported symbol prefix for Tencent API: {clean_symbol}"}]
+
+    url = f"https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?_var=kline_dayqfq&param={market}{clean_symbol},day,,,{limit},qfq"
+
+    try:
+        resp = requests.get(url, timeout=10)
+        resp.raise_for_status()
+    except Exception as e:
+        return [{"error": f"Tencent API request failed: {e}"}]
+
+    text = resp.text
+    if text.startswith("kline_dayqfq="):
+        text = text[len("kline_dayqfq="):]
+    else:
+        return [{"error": "Unexpected Tencent response format"}]
+
+    try:
+        data = json.loads(text)
+    except Exception as e:
+        return [{"error": f"Failed to parse Tencent JSON: {e}"}]
+
+    key = f"{market}{clean_symbol}"
+    if key not in data.get("data", {}):
+        return [{"error": f"Key '{key}' not found in Tencent response"}]
+
+    qfqday = data["data"][key].get("qfqday", [])
+    if not qfqday:
+        return []
+
+    # qfqday is a list of [date, open, close, high, low, volume]
+    results = []
+    for row in qfqday:
+        if len(row) < 6:
+            continue
+        date_str = row[0]
+        # Filter by date range
+        date_cmp = date_str.replace("-", "")
+        if start_date and date_cmp < start_date:
+            continue
+        if end_date and date_cmp > end_date:
+            continue
+
+        # Convert volume from shares to 万股 (ten thousand shares)
+        try:
+            volume_shares = float(row[5])
+            volume_wan = volume_shares / 10000.0
+        except (ValueError, TypeError):
+            volume_wan = "NaN"
+
+        results.append({
+            "日期": date_str,
+            "股票代码": clean_symbol,
+            "开盘": float(row[1]) if row[1] not in ("None", None) else "NaN",
+            "收盘": float(row[2]) if row[2] not in ("None", None) else "NaN",
+            "最高": float(row[3]) if row[3] not in ("None", None) else "NaN",
+            "最低": float(row[4]) if row[4] not in ("None", None) else "NaN",
+            "成交量": volume_wan,
+            "成交额": "NaN",
+            "振幅": "NaN",
+            "涨跌幅": "NaN",
+            "涨跌额": "NaN",
+            "换手率": "NaN",
+        })
+
+    return results
 
 
 @mcp.tool()
@@ -73,6 +158,9 @@ def stock_zh_a_hist(
         )
         return df_to_json(df)
     except Exception as e:
+        err_name = type(e).__name__
+        if err_name in ("ConnectionError", "RemoteDisconnected", "ProtocolError"):
+            return _tencent_fallback(symbol=symbol, start_date=start_date, end_date=end_date)
         return [{"error": str(e), "tool": "stock_zh_a_hist", "symbol": symbol}]
 
 
