@@ -7,6 +7,7 @@ from mcp.server.fastmcp import FastMCP
 import akshare as ak
 import pandas as pd
 import requests
+from requests.exceptions import ConnectionError as RequestsConnectionError
 import json
 from datetime import datetime, timedelta
 
@@ -23,6 +24,80 @@ def df_to_json(df: pd.DataFrame, max_rows: int = 5000) -> list[dict]:
     if len(df) > max_rows:
         df = df.head(max_rows)
     return df.fillna("NaN").to_dict(orient="records")
+
+
+def _code_to_tencent_prefix(code: str) -> str:
+    """Map 6-digit stock code to Tencent market prefix."""
+    if code.startswith(("0", "3")):
+        return "sz"
+    if code.startswith("6"):
+        return "sh"
+    if code.startswith("8"):
+        return "bj"
+    return "sz"
+
+
+def _tencent_spot(codes: list[str]) -> list[dict]:
+    """
+    Fetch A-share realtime quotes from Tencent API as fallback when Eastmoney fails.
+    codes: list of 6-digit stock codes (e.g., ["000001", "600519"]).
+    """
+    tencent_codes = [f"{_code_to_tencent_prefix(c)}{c}" for c in codes]
+    url = f"https://qt.gtimg.cn/q={','.join(tencent_codes)}"
+
+    try:
+        resp = requests.get(url, timeout=10)
+        resp.raise_for_status()
+    except Exception as e:
+        return [{"error": f"Tencent spot API request failed: {e}", "tool": "stock_zh_a_spot"}]
+
+    results = []
+    for line in resp.text.strip().split(";"):
+        line = line.strip()
+        if not line or '="' not in line:
+            continue
+        val = line.split('="')[1].rstrip('"')
+        if not val:
+            continue
+        parts = val.split("~")
+        if len(parts) < 48:
+            continue
+
+        code = parts[2]
+        try:
+            latest = float(parts[3]) if parts[3] else "NaN"
+            prev_close = float(parts[4]) if parts[4] else "NaN"
+            open_price = float(parts[5]) if parts[5] else "NaN"
+            high = float(parts[33]) if parts[33] else "NaN"
+            low = float(parts[34]) if parts[34] else "NaN"
+            change_pct = float(parts[32]) if parts[32] else "NaN"
+            change_amt = float(parts[31]) if parts[31] else "NaN"
+            volume = float(parts[6]) if parts[6] else "NaN"  # 手
+            amount = float(parts[37]) if parts[37] else "NaN"  # 万
+            turnover = float(parts[38]) if parts[38] else "NaN"
+            pe = float(parts[39]) if parts[39] else "NaN"
+            amplitude = round((high - low) / prev_close * 100, 2) if isinstance(prev_close, float) and prev_close > 0 else "NaN"
+        except (ValueError, TypeError):
+            continue
+
+        results.append({
+            "代码": code,
+            "名称": parts[1],
+            "最新价": latest,
+            "涨跌幅": change_pct,
+            "涨跌额": change_amt,
+            "今开": open_price,
+            "昨收": prev_close,
+            "最高": high,
+            "最低": low,
+            "成交量": volume,
+            "成交额": amount,
+            "振幅": amplitude,
+            "换手率": turnover,
+            "市盈率": pe,
+        })
+
+    return results
 
 
 def _tencent_fallback(symbol: str, start_date: str, end_date: str, limit: int = 320) -> list[dict]:
@@ -123,6 +198,10 @@ def stock_zh_a_spot(symbol: str | None = None) -> list[dict]:
             df = df[df["代码"] == symbol]
         return df_to_json(df, max_rows=10000)
     except Exception as e:
+        if isinstance(e, (RequestsConnectionError, requests.exceptions.ProxyError)):
+            if symbol:
+                return _tencent_spot([symbol])
+            return [{"error": "Eastmoney unavailable and no symbol specified. Tencent fallback requires a specific stock code.", "tool": "stock_zh_a_spot", "hint": "Call again with symbol parameter, e.g. stock_zh_a_spot(symbol='000001')"}]
         return [{"error": str(e), "tool": "stock_zh_a_spot", "symbol": symbol}]
 
 
@@ -158,8 +237,7 @@ def stock_zh_a_hist(
         )
         return df_to_json(df)
     except Exception as e:
-        err_name = type(e).__name__
-        if err_name in ("ConnectionError", "RemoteDisconnected", "ProtocolError"):
+        if isinstance(e, (RequestsConnectionError, requests.exceptions.ProxyError)):
             return _tencent_fallback(symbol=symbol, start_date=start_date, end_date=end_date)
         return [{"error": str(e), "tool": "stock_zh_a_hist", "symbol": symbol}]
 
