@@ -26,7 +26,7 @@ For each stock_code, call:
 
 ```
 Tool: mcp__akshare__stock_zh_a_hist
-symbol: "<stock_code>.SH" or "<stock_code>.SZ"
+symbol: "<stock_code>"
 period: "daily"
 adjust: "qfq"
 start_date: <60 trading days ago>
@@ -34,62 +34,47 @@ end_date: <today>
 ```
 
 Notes:
-- Use .SH for codes starting with 6, .SZ for others
 - adjust="qfq" is REQUIRED to ensure price continuity across dividends/splits
-- Fetch 60 days minimum for MA20 and RSI(14) calculations
+- Fetch 60 days minimum for full indicator set (MA20, RSI14, MACD need 26+)
 
-### Step 3: Compute Technical Indicators
+### Step 3: Compute Technical Indicators (Server-Side)
 
-For each stock, compute:
+Pass OHLCV data to the server-side indicator computation tool:
 
-```python
-# MA calculations
-ma5 = close[-5:].mean()
-ma10 = close[-10:].mean()
-ma20 = close[-20:].mean()
-
-# RSI(14)
-delta = diff(close)
-gain = delta[delta > 0].mean()
-loss = (-delta[delta < 0]).mean()
-rs = gain / loss if loss != 0 else 100
-rsi = 100 - (100 / (1 + rs))
-
-# MACD
-ema12 = ewm(close, span=12).mean()
-ema26 = ewm(close, span=26).mean()
-dif = ema12 - ema26
-dea = ewm(dif, span=9).mean()
-hist = dif - dea
-
-# Bollinger Bands
-std20 = close[-20:].std()
-upper = ma20 + 2 * std20
-middle = ma20
-lower = ma20 - 2 * std20
-
-# Volume ratio
-vol_avg5 = volume[-5:].mean()
-vol_ratio = volume[-1] / vol_avg5 if vol_avg5 > 0 else 0
+```
+Tool: mcp__prediction_store__compute_indicators
+ohlcv_data: <list of OHLCV dicts from Step 2>
 ```
 
-### Step 4: Get Recent Accuracy
+Returns precise MA5/10/20, RSI(14), MACD(DIF/DEA/Hist), Bollinger Bands, Volume Ratio.
+
+### Step 4: Load Strategy Notes
+
+Load persistent strategy adjustments from previous runs:
+
+```
+Tool: mcp__prediction_store__manage_strategy_notes
+action: "recent"
+limit: 5
+```
+
+Apply any corrections noted (e.g., "overweight RSI after high-volume days").
+
+### Step 5: Get Accuracy Report and Error Analysis
 
 ```
 Tool: mcp__prediction_store__get_accuracy_report
 days: 30
-```
 
-Record MAE and direction accuracy for calibration.
-
-### Step 5: Get Error Analysis
-
-```
 Tool: mcp__prediction_store__get_error_analysis
 days: 30
+
+Tool: mcp__prediction_store__get_accuracy_trend
+days: 30
+bucket_days: 7
 ```
 
-Note systematic biases to apply corrections.
+Use MAE, hit_rate, bias, by_stock, by_confidence, and trend to calibrate.
 
 ### Step 6: Generate Predictions
 
@@ -100,7 +85,7 @@ For each stock:
    - Suspended (volume=0) → skip
    - Limit-up/limit-down → null prediction with explanation
 
-2. **Analyze indicators:**
+2. **Analyze indicators from Step 3:**
    - RSI > 70: overbought, negative bias
    - RSI < 30: oversold, positive bias
    - MA5 > MA10 > MA20: bullish alignment
@@ -108,9 +93,11 @@ For each stock:
    - Price near lower Bollinger Band: potential bounce
    - Volume ratio > 2: unusual activity, attention
 
-3. **Apply corrections:**
-   - If error analysis shows small-cap overestimation, reduce predictions for small-cap stocks
-   - Adjust confidence based on recent MAE
+3. **Apply corrections from Steps 4-5:**
+   - Adjust based on strategy notes
+   - If error analysis shows systematic bias, correct for it
+   - Adjust confidence based on recent MAE and accuracy trend
+   - Use by_confidence to check if high-confidence predictions are actually better
 
 4. **Output prediction:**
    - `predicted_pct`: clamped to [-30, 30]
@@ -126,44 +113,34 @@ stock_code: "<6-digit code>"
 signal_date: "<YYYYMMDD>"
 predicted_pct: <float>
 confidence: <float>
-features_summary: {
-  "rsi": <float>,
-  "macd_hist": <float>,
-  "ma5": <float>,
-  "ma10": <float>,
-  "ma20": <float>,
-  "vol_ratio": <float>,
-  "bollinger_pos": <"above"|"below"|"inside">
-}
+baseline: <true if fewer than 20 verified predictions exist>
+features_summary: <JSON of indicator values from Step 3>
 ```
 
-### Step 8: Record Actuals
+### Step 8: Auto-Verify Previous Predictions
 
-Check for predictions from previous day without actuals:
-
-```
-Tool: mcp__prediction_store__get_predictions
-signal_date: "<yesterday>"
-status: "pending"
-```
-
-For each pending prediction:
+Automatically verify all unverified predictions:
 
 ```
-Tool: mcp__akshare__stock_zh_a_spot
-symbol: "<stock_code>.SH" or "<stock_code>.SZ"
+Tool: mcp__prediction_store__auto_verify_predictions
+signal_date: <optional, or omit for all>
 ```
 
-Compute `actual_pct = (current_price - prev_close) / prev_close * 100`
+This tool fetches actual prices from AKShare and records actuals automatically.
+
+### Step 9: Save Strategy Notes
+
+After error analysis, save strategy adjustments for next run:
 
 ```
-Tool: mcp__prediction_store__record_actual
-stock_code: "<code>"
-signal_date: "<yesterday>"
-actual_pct: <float>
+Tool: mcp__prediction_store__manage_strategy_notes
+action: "add"
+note_date: "<YYYYMMDD>"
+note_type: "post_analysis"
+content: "<key findings, e.g., '小盘股高估趋势持续，下次降低小盘股预测幅度20%'>"
 ```
 
-### Step 9: Generate Report
+### Step 10: Generate Report
 
 Output markdown report with prediction table and accuracy summary.
 
@@ -179,7 +156,9 @@ Output markdown report with prediction table and accuracy summary.
 | 300750 | 280.00 | null | - | 涨停排除 |
 
 准确率追踪: MAE=1.2%, 方向准确率=68%
+准确率趋势: improving (近7天MAE 0.8% vs 前7天 1.6%)
 误差模式: 近5日对小盘股存在系统性高估
+策略笔记: [加载上次调整]
 ```
 
 ## Signal Interpretation
