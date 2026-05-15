@@ -5,6 +5,7 @@ Run: uvicorn server:mcp_app --host 0.0.0.0 --port 8003
 
 import logging
 import math
+import json
 import re
 import sqlite3
 from datetime import datetime, timedelta
@@ -867,16 +868,61 @@ def get_next_trading_day(from_date: str = None) -> list[dict]:
 
 
 def _get_signal_and_next_close(stock_code: str, signal_date: str, next_td: str) -> tuple[float, float] | None:
-    """Fetch signal_date close and next_trading_day close via AKShare."""
+    """Fetch signal_date close and next_trading_day close. Tries AKShare first, then Tencent fallback."""
     try:
         df = ak.stock_zh_a_hist(symbol=stock_code, period="daily", start_date=signal_date, end_date=next_td, adjust="qfq")
-        if df is None or df.empty or len(df) < 2:
-            return None
-        signal_close = float(df.iloc[0]["收盘"])
-        next_close = float(df.iloc[1]["收盘"])
-        return signal_close, next_close
+        if df is not None and not df.empty and len(df) >= 2:
+            return float(df.iloc[0]["收盘"]), float(df.iloc[1]["收盘"])
     except Exception:
-        return None
+        pass
+
+    # Tencent fallback
+    try:
+        if stock_code.startswith(("0", "3")):
+            market = "sz"
+        elif stock_code.startswith("6"):
+            market = "sh"
+        elif stock_code.startswith("8"):
+            market = "bj"
+        else:
+            market = "sz"
+
+        sd_fmt = f"{signal_date[:4]}-{signal_date[4:6]}-{signal_date[6:8]}"
+        nt_fmt = f"{next_td[:4]}-{next_td[4:6]}-{next_td[6:8]}"
+        url = f"https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?_var=kline_dayqfq&param={market}{stock_code},day,{sd_fmt},{nt_fmt},10,qfq"
+        import requests as _req
+        resp = _req.get(url, timeout=10)
+        resp.raise_for_status()
+        text = resp.text
+        if text.startswith("kline_dayqfq="):
+            text = text[len("kline_dayqfq="):]
+        data = json.loads(text)
+        key = f"{market}{stock_code}"
+        qfqday = data.get("data", {}).get(key, {}).get("qfqday", [])
+
+        # If we only got next_trading_day but not signal_date, fetch wider range
+        if len(qfqday) < 2:
+            # Fetch last 15 days from signal_date to ensure we cover both dates
+            from datetime import timedelta as _td
+            sd_dt = datetime.strptime(signal_date, "%Y%m%d")
+            earlier = (sd_dt - _td(days=15)).strftime("%Y-%m-%d")
+            later = (datetime.strptime(next_td, "%Y%m%d")).strftime("%Y-%m-%d")
+            url2 = f"https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?_var=kline_dayqfq&param={market}{stock_code},day,{earlier},{later},30,qfq"
+            resp2 = _req.get(url2, timeout=10)
+            text2 = resp2.text
+            if text2.startswith("kline_dayqfq="):
+                text2 = text2[len("kline_dayqfq="):]
+            data2 = json.loads(text2)
+            qfqday_all = data2.get("data", {}).get(key, {}).get("qfqday", [])
+            # Filter to only signal_date and next_td
+            qfqday = [r for r in qfqday_all if r[0] in (sd_fmt, nt_fmt)]
+
+        if len(qfqday) >= 2:
+            return float(qfqday[0][2]), float(qfqday[1][2])
+    except Exception:
+        pass
+
+    return None
 
 
 @mcp.tool()
@@ -915,6 +961,7 @@ def auto_verify_predictions(signal_date: str = None) -> list[dict]:
 
             # Get next trading day
             conn2 = sqlite3.connect(str(DB_PATH))
+            conn2.row_factory = sqlite3.Row
             next_td_row = conn2.execute(
                 "SELECT trade_date FROM trading_calendar WHERE trade_date > ? AND is_trading_day=1 ORDER BY trade_date ASC LIMIT 1",
                 (sig_date,),
