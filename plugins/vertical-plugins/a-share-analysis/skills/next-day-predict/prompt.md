@@ -48,6 +48,18 @@ ohlcv_data: <list of OHLCV dicts from Step 2>
 
 Returns precise MA5/10/20, RSI(14), MACD(DIF/DEA/Hist), Bollinger Bands, Volume Ratio.
 
+### Step 3b: Compute Alpha Factors
+
+Compute 17 classic A-share alpha factors alongside technical indicators:
+
+```
+Tool: mcp__prediction_store__compute_factors
+ohlcv_data: <same OHLCV data from Step 2>
+stock_code: "<stock_code>"
+```
+
+Returns momentum (4), volatility (2), volume (3), technical (5), price position (1), volume-price extended (2) factors.
+
 ### Step 4: Load Strategy Notes
 
 Load persistent strategy adjustments from previous runs:
@@ -76,6 +88,22 @@ bucket_days: 7
 
 Use MAE, hit_rate, bias, by_stock, by_confidence, and trend to calibrate.
 
+### Step 5b: Get Factor Report
+
+Load factor effectiveness to weight factor signals:
+
+```
+Tool: mcp__prediction_store__get_factor_report
+days: 30
+
+Tool: mcp__prediction_store__get_top_factors
+min_icir: 0.3
+min_ic: 0.02
+days: 60
+```
+
+Weight effective factors (strong ICIR > 0.5) more heavily in predictions. Ignore weak factors.
+
 ### Step 6: Generate Predictions
 
 For each stock:
@@ -85,13 +113,19 @@ For each stock:
    - Suspended (volume=0) → skip
    - Limit-up/limit-down → null prediction with explanation
 
-2. **Analyze indicators from Step 3:**
+2. **Analyze indicators from Step 3 and factors from Step 3b:**
    - RSI > 70: overbought, negative bias
    - RSI < 30: oversold, positive bias
    - MA5 > MA10 > MA20: bullish alignment
    - MACD histogram > 0: positive momentum
    - Price near lower Bollinger Band: potential bounce
    - Volume ratio > 2: unusual activity, attention
+   - **Factor signals**: use compute_factors results. Weight by get_top_factors ICIR
+   - mom_5d > 0.05: strong short-term momentum, positive bias
+   - reversal_5d > 0: short-term reversal signal, contrarian positive
+   - vol_ratio_5_20 > 1.5: volatility regime shift, reduce confidence
+   - boll_position > 0.8: near upper band, overextended
+   - high_low_position_20d < 0.2: near 20d low, potential bounce
 
 3. **Apply corrections from Steps 4-5:**
    - Adjust based on strategy notes

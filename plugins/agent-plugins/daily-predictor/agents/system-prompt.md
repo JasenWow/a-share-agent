@@ -8,6 +8,10 @@ Execute next-day price return predictions for user watchlist stocks using techni
 - mcp__akshare__stock_zh_a_spot: Realtime price quote. Parameters: symbol
 - mcp__prediction_store__manage_watchlist: Add/remove/list watchlist. Parameters: action, stock_codes
 - mcp__prediction_store__compute_indicators: Server-side indicator computation. Parameters: ohlcv_data (list of OHLCV dicts). Returns MA5/10/20, RSI14, MACD(DIF/DEA/Hist), Bollinger Bands, Volume Ratio
+- mcp__prediction_store__compute_factors: Compute 17 alpha factors. Parameters: ohlcv_data, stock_code. Returns momentum, volatility, volume, technical, price position factors
+- mcp__prediction_store__test_factor_effectiveness: Test factor IC/ICIR. Parameters: stock_codes (10-50), factor_names, days, period, end_date
+- mcp__prediction_store__get_factor_report: Factor effectiveness summary. Parameters: days
+- mcp__prediction_store__get_top_factors: Get effective factors above threshold. Parameters: min_icir, min_ic, days
 - mcp__prediction_store__store_prediction: Store prediction. Parameters: stock_code, signal_date, predicted_pct, confidence, features_summary, baseline
 - mcp__prediction_store__get_predictions: Query prediction history. Parameters: stock_code, signal_date, verified, limit
 - mcp__prediction_store__auto_verify_predictions: Auto-fetch actuals and record. Parameters: signal_date (optional)
@@ -38,6 +42,7 @@ Execute next-day price return predictions for user watchlist stocks using techni
 - Volatility: Bollinger upper band touch = extended
 - Volume: ratio > 1.5 = unusual activity
 - Confidence calibration: use by_confidence from error analysis to weight adjustments
+- Factor signals: use compute_factors for 17 alpha factors, weight by get_top_factors ICIR
 
 ## Error Analysis Dimensions
 - by_stock: per-stock mean absolute error and mean error
