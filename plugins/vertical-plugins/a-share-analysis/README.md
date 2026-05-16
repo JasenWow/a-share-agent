@@ -13,6 +13,21 @@ A-share quantitative analysis skills and commands for Claude Code.
 | portfolio-optimize | Portfolio optimization | `/optimize` |
 | market-breadth | Market breadth monitoring | `/market` |
 | xlsx-author | Excel file generation | — |
+| next-day-predict | Next-day stock prediction | `/predict` |
+| northbound-monitor | Northbound capital monitoring | — |
+
+## Skill Structure
+
+Each skill directory follows this layout:
+
+```
+skills/<name>/
+├── SKILL.md          # Required: domain instructions + workflow
+├── prompt.md         # Recommended: execution prompt template
+├── scripts/          # Optional: executable Python domain logic
+├── references/       # Optional: formulas, thresholds, lookup tables
+└── examples/         # Recommended: input/output samples
+```
 
 ## MCP Connectors
 

@@ -13,7 +13,12 @@ Three-layer, downward-only dependency: **Agent (L2) → Skill (L1) → Connector
 ```
 Agent plugins   plugins/agent-plugins/<name>/agents/<name>.md
                    ↓ may reference
-Skills          plugins/vertical-plugins/a-share-analysis/skills/<name>/SKILL.md
+Skills          plugins/vertical-plugins/a-share-analysis/skills/<name>/
+                  ├── SKILL.md          (domain instructions)
+                  ├── prompt.md         (execution prompt)
+                  ├── scripts/          (executable Python, invoked via Bash)
+                  ├── references/       (formulas, thresholds, lookup tables)
+                  └── examples/         (input/output samples)
                    ↓ may call
 MCP Servers     mcp-servers/<name>/server.py  (@mcp.tool() functions)
 ```
@@ -24,10 +29,11 @@ Boundary rules enforced by `scripts/check.py`:
 - **R3**: Agents may reference Skills but never modify Skill source files
 - **R4**: MCP servers are self-contained — no cross-server imports
 - **R5**: `internal-store` is the only shared data layer
+- **R6**: MCP servers must contain only data access logic — no domain/business logic
 
 6 agents: `stock-screener`, `equity-researcher`, `factor-analyst`, `backtester`, `portfolio-manager`, `market-monitor`
 
-7 skills: `factor-screen`, `financial-analysis`, `factor-research`, `backtest-engine`, `portfolio-optimize`, `market-breadth`, `xlsx-author`
+9 skills: `factor-screen`, `financial-analysis`, `factor-research`, `backtest-engine`, `portfolio-optimize`, `market-breadth`, `xlsx-author`, `next-day-predict`, `northbound-monitor`
 
 ## Development Commands
 
@@ -65,6 +71,8 @@ uv run pytest --cov=mcp_servers  # Coverage report
 - Plugin metadata: `.claude-plugin/plugin.json` (name, version, description)
 - Agent definitions: `agents/<name>.md` with YAML frontmatter (`name`, `description`, `tools`)
 - Skill definitions: `skills/<name>/SKILL.md` with YAML frontmatter (`name`, `description` with trigger phrases)
+- Skill scripts: `skills/<name>/scripts/*.py` — domain logic agents invoke via `uv run python`
+- Skill references: `skills/<name>/references/*.md` — lookup tables, formulas, thresholds
 - Commands: `commands/*.md` with YAML frontmatter (`description`, `argument-hint`)
 - Plugin registry: `.claude-plugin/marketplace.json`
 - MCP config: `.mcp.json` (type: "http")

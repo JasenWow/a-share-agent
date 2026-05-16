@@ -62,13 +62,15 @@ L2  Agent Layer  (workflow orchestration)
     ├── system-prompt.md      System prompt for Claude
     └── plugin.json           Skills list, commands, MCP dependencies
     ↓ may use
-L1  Skill Layer  (domain knowledge)
+L1  Skill Layer  (domain knowledge + executable logic)
     plugins/vertical-plugins/a-share-analysis/skills/<name>/
     ├── SKILL.md              Trigger conditions, inputs, outputs, steps
     ├── prompt.md             Execution prompt template
+    ├── scripts/              Domain logic (Python, invoked by agents via Bash)
+    ├── references/           Lookup tables, formulas, thresholds
     └── examples/             Input/output examples
     ↓ may use
-L0  Connector Layer  (MCP data access)
+L0  Connector Layer  (MCP data access only)
     mcp-servers/<name>/server.py
     ├── @mcp.tool()           One function per data endpoint
     └── .mcp.json             Server URL and transport config
@@ -85,6 +87,7 @@ These rules are enforced by `scripts/check.py` where possible.
 | **R3** | Agents may reference Skill definitions but must never modify Skill source files. |
 | **R4** | Each MCP Server must be self-contained — no cross-server imports between `akshare-server/`, `tushare-server/`, `internal-store/`. |
 | **R5** | `mcp-servers/internal-store/` is the only shared data layer. All servers read/write through it, never through each other. |
+| **R6** | MCP servers must contain only data access logic — no domain/business logic (e.g., no factor calculation, backtest logic, or screening rules). Domain logic belongs in skill `scripts/`. |
 
 ## Data Flow
 
@@ -169,8 +172,8 @@ pytest -m e2e                      # End-to-end tests
 
 | Language | Purpose | Location |
 |----------|---------|----------|
-| Python | MCP servers, utility scripts | `mcp-servers/`, `scripts/` |
-| Markdown | Agent manifests, skill definitions | `plugins/`, `contributing/` |
+| Python | MCP servers, skill scripts, utility scripts | `mcp-servers/`, `skills/*/scripts/`, `scripts/` |
+| Markdown | Agent manifests, skill definitions, references | `plugins/`, `contributing/`, `skills/*/references/` |
 | JSON | Command definitions, plugin configs | `plugins/*/commands/`, `plugin.json` |
 | SQL | Database schema | `mcp-servers/internal-store/schema.sql` |
 | YAML | Future: CI/CD, Docker Compose | — |

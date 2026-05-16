@@ -98,6 +98,62 @@ def check_mcp_servers_code() -> list[str]:
     return issues
 
 
+def check_boundary_rules() -> list[str]:
+    """Check architectural boundary rules (R1-R6)."""
+    issues = []
+    plugins_dir = ROOT / "plugins"
+
+    # R1: MCP servers must not import plugins/ code
+    mcp_dir = ROOT / "mcp-servers"
+    if mcp_dir.exists():
+        for srv_dir in mcp_dir.iterdir():
+            if not srv_dir.is_dir():
+                continue
+            for py_file in srv_dir.rglob("*.py"):
+                content = py_file.read_text(errors="ignore")
+                if "plugins" in content and ("import" in content or "from" in content):
+                    for line in content.splitlines():
+                        stripped = line.strip()
+                        if ("from plugins" in stripped or "import plugins" in stripped) and not stripped.startswith("#"):
+                            issues.append(f"R1 VIOLATION: {py_file.relative_to(ROOT)} imports plugins code: {stripped}")
+
+    # R6: MCP servers should not contain domain logic keywords
+    domain_keywords = [
+        "winsorize",
+        "neutralize",
+        "factor_cal",
+        "backtest",
+        "portfolio_optimize",
+        "screen_stocks",
+        "market_breadth",
+    ]
+    if mcp_dir.exists():
+        for srv_dir in mcp_dir.iterdir():
+            if not srv_dir.is_dir():
+                continue
+            for py_file in srv_dir.rglob("*.py"):
+                content = py_file.read_text(errors="ignore").lower()
+                for kw in domain_keywords:
+                    if kw in content and "def " in content:
+                        issues.append(f"R6 WARNING: {py_file.relative_to(ROOT)} may contain domain logic ({kw}) — consider moving to skill scripts/")
+                        break
+
+    # R4: No cross-server imports
+    server_names = ["akshare_server", "tushare_server", "internal_store"]
+    if mcp_dir.exists():
+        for srv_dir in mcp_dir.iterdir():
+            if not srv_dir.is_dir():
+                continue
+            for py_file in srv_dir.rglob("*.py"):
+                content = py_file.read_text(errors="ignore")
+                for other in server_names:
+                    if other.replace("_", "-") != srv_dir.name:
+                        if f"from mcp_servers.{other}" in content or f"import mcp_servers.{other}" in content:
+                            issues.append(f"R4 VIOLATION: {py_file.relative_to(ROOT)} imports from {other}")
+
+    return issues
+
+
 def check_data_dir() -> list[str]:
     """Check data directory."""
     issues = []
@@ -129,6 +185,7 @@ def main():
         ("MCP Configuration", check_mcp_servers),
         ("Plugin Structure", check_plugin_structure),
         ("MCP Server Code", check_mcp_servers_code),
+        ("Boundary Rules", check_boundary_rules),
         ("Data Directory", check_data_dir),
         ("Environment Variables", check_env_vars),
     ]

@@ -1,6 +1,6 @@
 # A-Share Analysis Plugin
 
-**Scope:** The skills + commands layer. Markdown-based, not Python packages.
+**Scope:** The skills + commands layer. Skills contain domain knowledge (Markdown) and executable domain logic (Python scripts).
 
 ## STRUCTURE
 
@@ -9,15 +9,22 @@ plugins/vertical-plugins/a-share-analysis/
 ├── .claude-plugin/
 │   └── plugin.json         # Plugin metadata
 ├── .mcp.json               # MCP config (type: http)
-├── skills/                  # 7 skills (each is a directory with SKILL.md)
+├── skills/                  # Skills (each is a directory)
 │   ├── factor-screen/
+│   │   ├── SKILL.md         # Domain instructions
+│   │   ├── prompt.md        # Execution prompt (recommended)
+│   │   ├── scripts/         # Executable Python (optional)
+│   │   ├── references/      # Formulas, thresholds (optional)
+│   │   └── examples/        # I/O samples (recommended)
 │   ├── financial-analysis/
 │   ├── factor-research/
 │   ├── backtest-engine/
 │   ├── portfolio-optimize/
 │   ├── market-breadth/
-│   └── xlsx-author/
-├── commands/               # 6 slash commands (each is a .md file)
+│   ├── xlsx-author/
+│   ├── next-day-predict/
+│   └── northbound-monitor/
+├── commands/               # Slash commands (each is a .md file)
 │   ├── screen.md
 │   ├── research.md
 │   ├── factor.md
@@ -47,11 +54,12 @@ plugins/vertical-plugins/a-share-analysis/
 
 - **Never** modify Skill source files from an Agent (R3)
 - Skills must not reference Agent code (R2)
-- Skills are `.md` files — never Python modules at this layer
+- Skill scripts must not import code from `mcp-servers/`, `plugins/agent-plugins/`, or other skills
 - Never web search for financial data
 
 ## CONVENTIONS
 
-- Each skill dir has: `SKILL.md` (required), `prompt.md` (recommended), `examples/` (recommended)
+- Each skill dir has: `SKILL.md` (required), `prompt.md` (recommended), `scripts/` (if domain logic exists), `references/` (if lookup data exists), `examples/` (recommended)
+- Skill scripts are invoked via `uv run python skills/<name>/scripts/<script>.py`
 - Skill validation: `python scripts/validate.py`
 - Sync to agents: `python scripts/sync-agent-skills.py`

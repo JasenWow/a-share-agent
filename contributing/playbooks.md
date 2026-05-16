@@ -32,19 +32,36 @@ Scope: creating a new skill under `plugins/vertical-plugins/a-share-analysis/ski
    - Include step-by-step instructions referencing the SKILL.md workflow.
    - Define output format explicitly (column names, table structure, file naming).
 
-4. **Add examples:**
+4. **Add executable scripts (if the skill has domain logic):**
+   ```
+   skills/<skill-name>/scripts/
+   ├── <script>.py         # Domain logic (factor calc, backtest engine, etc.)
+   └── test_<script>.py    # Co-located tests
+   ```
+   - Scripts are invoked by agents via `uv run python <path>`
+   - Scripts may use MCP tools' data (passed as file paths or stdin JSON)
+   - Scripts must NOT import code from `mcp-servers/`, `plugins/agent-plugins/`, or other skills
+   - Scripts follow the same coding standards (ruff, type hints, error handling)
+
+5. **Add references (if the skill has lookup data):**
+   ```
+   skills/<skill-name>/references/
+   └── <topic>.md          # Formulas, thresholds, industry mappings
+   ```
+
+6. **Add examples:**
    ```
    skills/<skill-name>/examples/
    ├── input-example.md    # Sample user input
    └── output-example.md   # Expected output
    ```
 
-5. **Register in vertical plugin:**
+7. **Register in vertical plugin:**
    Edit `plugins/vertical-plugins/a-share-analysis/plugin.json`:
    - Add skill name to the `skills` array.
    - If the skill has a slash command, also add to `commands` array.
 
-6. **Add command definition (if applicable):**
+8. **Add command definition (if applicable):**
    Create `plugins/vertical-plugins/a-share-analysis/commands/<cmd>.json`:
    ```json
    {
@@ -66,18 +83,18 @@ Scope: creating a new skill under `plugins/vertical-plugins/a-share-analysis/ski
    }
    ```
 
-7. **Sync to agents:**
+9. **Sync to agents:**
    ```bash
    python scripts/sync-agent-skills.py
    ```
    This copies skill definitions into agent directories that reference them.
 
-8. **Write tests:**
-   - At minimum, validate that SKILL.md has required sections.
-   - If the skill includes computation, test with fixture data.
+10. **Write tests:**
+    - At minimum, validate that SKILL.md has required sections.
+    - If the skill includes scripts, write co-located `test_*.py` with fixture data.
 
-9. **Update agent references:**
-   If existing agents should use this skill, update their `plugin.json` `skills` array.
+11. **Update agent references:**
+    If existing agents should use this skill, update their `plugin.json` `skills` array.
 
 ### Verify
 
