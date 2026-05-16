@@ -22,6 +22,11 @@
       "type": "http",
       "url": "http://localhost:8003/mcp",
       "description": "Prediction store — next-day return predictions, watchlist management"
+    },
+    "paper-trader": {
+      "type": "http",
+      "url": "http://localhost:8004/mcp",
+      "description": "Backtest simulation engine — event-driven A-share strategy backtesting with T+1, price limits, costs, and performance metrics"
     }
   }
 }

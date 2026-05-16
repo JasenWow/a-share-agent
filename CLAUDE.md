@@ -32,28 +32,32 @@ Boundary rules enforced by `scripts/check.py`:
 ## Development Commands
 
 ```bash
+# Environment setup (managed by uv)
+uv sync                     # Install all dependencies
+uv run <command>            # Run any command in the venv
+
 # Environment verification
-python scripts/check.py
-python scripts/validate.py                    # Validate plugin/skill structure
-python scripts/sync-agent-skills.py            # Sync skills into agent dirs
-python scripts/sync-agent-skills.py --check    # Check sync status
+uv run python scripts/check.py
+uv run python scripts/validate.py                    # Validate plugin/skill structure
+uv run python scripts/sync-agent-skills.py            # Sync skills into agent dirs
+uv run python scripts/sync-agent-skills.py --check    # Check sync status
 
 # Start MCP servers
-uvicorn mcp-servers.akshare-server.server:mcp_app --port 8000
-TUSHARE_TOKEN=xxx uvicorn mcp-servers.tushare-server.server:mcp_app --port 8001
-uvicorn mcp-servers.internal-store.server:mcp_app --port 8002
+uv run uvicorn mcp-servers.akshare-server.server:mcp_app --port 8000
+TUSHARE_TOKEN=xxx uv run uvicorn mcp-servers.tushare-server.server:mcp_app --port 8001
+uv run uvicorn mcp-servers.internal-store.server:mcp_app --port 8002
 
 # Lint and format
-ruff check .
-ruff format .
+uv run ruff check .
+uv run ruff format .
 
 # Test
-pytest                    # Unit tests
-pytest -m integration     # Integration tests (MCP servers must be running)
-pytest -m e2e             # End-to-end tests (uses fixture data)
-pytest tests/test_foo.py  # Single test file
-pytest -x                 # Stop on first failure
-pytest --cov=mcp_servers  # Coverage report
+uv run pytest                    # Unit tests
+uv run pytest -m integration     # Integration tests (MCP servers must be running)
+uv run pytest -m e2e             # End-to-end tests (uses fixture data)
+uv run pytest tests/test_foo.py  # Single test file
+uv run pytest -x                 # Stop on first failure
+uv run pytest --cov=mcp_servers  # Coverage report
 ```
 
 ## Plugin Conventions
