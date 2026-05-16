@@ -1,5 +1,6 @@
 """
-Paper Trader MCP Server — Event-driven backtest simulation engine.
+Paper Trader MCP Server — Backtest data access layer (CRUD only).
+Domain logic lives in skill scripts: plugins/vertical-plugins/a-share-analysis/skills/backtest-engine/scripts/
 Run: uvicorn mcp-servers.paper-trader.server:mcp_app --port 8004
 """
 
@@ -8,6 +9,8 @@ from __future__ import annotations
 import json
 import logging
 import sqlite3
+import subprocess
+import tempfile
 import uuid
 from pathlib import Path
 
@@ -22,14 +25,18 @@ from engine import BacktestEngine, DB_PATH
 from models import Signal
 from performance import compute_performance
 
+SKILL_SCRIPTS = Path(__file__).parent.parent.parent / (
+    "plugins/vertical-plugins/a-share-analysis/skills/backtest-engine/scripts"
+)
+
 logger = logging.getLogger(__name__)
 
 _engines: dict[str, BacktestEngine] = {}
 
 mcp = FastMCP(
     name="paper-trader",
-    instructions="Backtest simulation engine — event-driven A-share strategy backtesting with T+1, "
-    "price limits, transaction costs, and performance metrics. Version 0.1.0",
+    instructions="Backtest data access — session CRUD, data loading, results retrieval. "
+    "Domain logic (simulation) in skill scripts. Version 0.2.0",
 )
 
 SCHEMA_PATH = Path(__file__).parent / "schema.sql"
@@ -219,6 +226,7 @@ def load_bar_data(
 ) -> list[dict]:
     """
     Load OHLCV data for stocks and benchmark into session memory.
+    Data is persisted to DB for run_session to use.
 
     Args:
         session_id:    Session ID.
@@ -228,11 +236,19 @@ def load_bar_data(
         benchmark_data: Benchmark index OHLCV records from akshare (optional).
     """
     try:
+        # Persist bar data to a JSON file keyed by session
+        bar_data_dir = DB_PATH.parent / "bar_data"
+        bar_data_dir.mkdir(exist_ok=True)
+        bar_file = bar_data_dir / f"{session_id}.json"
+        saved = {"bar_data": data, "benchmark_data": benchmark_data or [], "stock_codes": stock_codes}
+        bar_file.write_text(json.dumps(saved, ensure_ascii=False), encoding="utf-8")
+
+        # Also load into engine cache for step mode
         engine = BacktestEngine(session_id)
         result = engine.load_bar_data(stock_codes, data)
         if benchmark_data:
             engine.load_benchmark(benchmark_data)
-        _engines[session_id] = engine  # Cache for step mode
+        _engines[session_id] = engine
         return [result]
     except Exception as e:
         return [{"error": str(e), "tool": "load_bar_data"}]
@@ -360,16 +376,180 @@ def get_today_market(session_id: str) -> list[dict]:
 def run_session(session_id: str) -> list[dict]:
     """
     Run the full backtest simulation from start_date to end_date.
-    Processes all submitted signals day-by-day with T+1 execution.
+    Delegates to skill script for domain logic, then persists results.
 
     Args:
         session_id: Session ID to run.
     """
     try:
-        engine = BacktestEngine(session_id)
-        result = engine.run()
-        return [result]
+        conn = _get_conn()
+        try:
+            session = conn.execute("SELECT * FROM sessions WHERE session_id = ?", (session_id,)).fetchone()
+            if not session:
+                return [{"error": "Session not found", "session_id": session_id}]
+            import json as _json
+
+            config = {
+                "session_id": session_id,
+                "initial_capital": session["initial_capital"],
+                "start_date": session["start_date"],
+                "end_date": session["end_date"],
+                "universe": _json.loads(session.get("universe", "[]")),
+                "benchmark": session.get("benchmark", "sh000300"),
+                "commission_rate": session.get("cost_commission", 0.00025),
+                "stamp_duty_rate": session.get("cost_stamp_duty", 0.0005),
+                "slippage_rate": session.get("cost_slippage", 0.0005),
+                "exclude_st": bool(session.get("exclude_st", 1)),
+            }
+
+            # Load pending signals
+            sig_rows = conn.execute(
+                "SELECT signal_date, stock_code, direction, target_weight, target_shares "
+                "FROM pending_signals WHERE session_id = ? AND processed = 0",
+                (session_id,),
+            ).fetchall()
+            config["signals"] = [
+                {
+                    "signal_date": r["signal_date"],
+                    "stock_code": r["stock_code"],
+                    "direction": r["direction"],
+                    "target_weight": r["target_weight"],
+                    "target_shares": r["target_shares"],
+                }
+                for r in sig_rows
+            ]
+
+            # Load bar data from file
+            bar_file = DB_PATH.parent / "bar_data" / f"{session_id}.json"
+            if bar_file.exists():
+                bar_saved = json.loads(bar_file.read_text(encoding="utf-8"))
+                config["bar_data"] = bar_saved.get("bar_data", {})
+                config["benchmark_data"] = bar_saved.get("benchmark_data", [])
+            else:
+                return [{"error": "No bar data loaded. Call load_bar_data first.", "tool": "run_session"}]
+        finally:
+            conn.close()
+
+        # Call skill script
+        with tempfile.NamedTemporaryFile(suffix=".json", mode="w", delete=False) as tmp:
+            json.dump(config, tmp, ensure_ascii=False)
+            tmp_path = tmp.name
+
+        try:
+            result = subprocess.run(
+                ["uv", "run", "python", str(SKILL_SCRIPTS / "run_backtest.py"), "--config", tmp_path],
+                capture_output=True,
+                text=True,
+                timeout=300,
+            )
+            if result.returncode != 0:
+                return [{"error": f"Backtest script failed: {result.stderr[:500]}", "tool": "run_session"}]
+
+            output = json.loads(result.stdout)
+        finally:
+            Path(tmp_path).unlink(missing_ok=True)
+
+        if "error" in output:
+            return [output]
+
+        # Persist results to DB
+        conn = _get_conn()
+        try:
+            # Clear previous data
+            conn.execute("DELETE FROM daily_nav WHERE session_id = ?", (session_id,))
+            conn.execute("DELETE FROM trades WHERE session_id = ?", (session_id,))
+            conn.execute("DELETE FROM positions WHERE session_id = ?", (session_id,))
+
+            for row in output.get("daily_nav", []):
+                conn.execute(
+                    "INSERT INTO daily_nav "
+                    "(session_id, trade_date, nav, cash, positions_value, benchmark_value, "
+                    "benchmark_close, daily_return, benchmark_return, excess_return) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        session_id,
+                        row["trade_date"],
+                        row["nav"],
+                        row["cash"],
+                        row["positions_value"],
+                        row["benchmark_value"],
+                        row["benchmark_close"],
+                        row["daily_return"],
+                        row["benchmark_return"],
+                        row["excess_return"],
+                    ),
+                )
+
+            for t in output.get("trades", []):
+                conn.execute(
+                    "INSERT INTO trades "
+                    "(session_id, trade_date, stock_code, direction, shares, price, amount, "
+                    "commission, stamp_duty, slippage_cost, total_cost, realized_pnl, signal_date) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        session_id,
+                        t["trade_date"],
+                        t["stock_code"],
+                        t["direction"],
+                        t["shares"],
+                        t["price"],
+                        t["amount"],
+                        t["commission"],
+                        t["stamp_duty"],
+                        t["slippage_cost"],
+                        t["total_cost"],
+                        t["realized_pnl"],
+                        t.get("signal_date", ""),
+                    ),
+                )
+
+            for p in output.get("positions", []):
+                conn.execute(
+                    "INSERT INTO positions "
+                    "(session_id, trade_date, stock_code, shares, cost_basis, "
+                    "market_value, unrealized_pnl, unrealized_pnl_pct, weight, sellable) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        session_id,
+                        p["trade_date"],
+                        p["stock_code"],
+                        p["shares"],
+                        p["cost_basis"],
+                        p["market_value"],
+                        p["unrealized_pnl"],
+                        p["unrealized_pnl_pct"],
+                        p["weight"],
+                        p["sellable"],
+                    ),
+                )
+
+            # Mark signals processed
+            conn.execute(
+                "UPDATE pending_signals SET processed = 1 WHERE session_id = ? AND processed = 0",
+                (session_id,),
+            )
+
+            # Update session status
+            conn.execute(
+                "UPDATE sessions SET status = 'completed', final_nav = ?, total_trades = ?, "
+                "current_date = ?, updated_at = datetime('now') WHERE session_id = ?",
+                (output["final_nav"], output["total_trades"], output.get("daily_nav", [{}])[-1].get("trade_date", ""), session_id),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        return [{
+            "session_id": session_id,
+            "status": "completed",
+            "final_nav": output["final_nav"],
+            "total_return": output["total_return"],
+            "total_trades": output["total_trades"],
+            "trading_days": output["trading_days"],
+            "performance": output.get("performance", {}),
+        }]
     except Exception as e:
+        logger.exception("run_session failed")
         return [{"error": str(e), "tool": "run_session"}]
 
 
