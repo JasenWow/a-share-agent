@@ -254,7 +254,7 @@ def record_transition(
         conn.row_factory = sqlite3.Row
         conn.execute(
             "INSERT INTO transitions (experiment_id, state, strategy, reward, next_state) VALUES (?, ?, ?, ?, ?)",
-            (experiment_id, json.dumps(state), json.dumps(strategy), json.dumps(reward), json.dumps(next_state)),
+            (experiment_id, json.dumps(state, sort_keys=True), json.dumps(strategy, sort_keys=True), json.dumps(reward, sort_keys=True), json.dumps(next_state, sort_keys=True)),
         )
         rows = conn.execute("SELECT * FROM transitions ORDER BY id DESC LIMIT 1").fetchall()
         conn.commit()

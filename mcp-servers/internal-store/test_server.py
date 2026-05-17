@@ -146,7 +146,7 @@ class TestRecordTransition:
             rows = record_transition(1, state, strategy, reward, next_state)
             assert len(rows) == 1
             assert rows[0]["experiment_id"] == 1
-            assert rows[0]["state"] == json.dumps(state)
+            assert rows[0]["state"] == json.dumps(state, sort_keys=True)
 
 
 class TestRecordEpisodeSummary:
