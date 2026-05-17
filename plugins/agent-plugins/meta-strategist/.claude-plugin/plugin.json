@@ -1,0 +1,6 @@
+{
+  "name": "meta-strategist",
+  "version": "0.1.0",
+  "description": "Autonomous strategy exploration agent. Uses simulation-driven evolution to discover profitable A-share strategies.",
+  "author": { "name": "A-Share Quant" }
+}
