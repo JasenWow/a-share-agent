@@ -124,3 +124,51 @@ class TestConstants:
     def test_corrections_has_all_keys(self):
         expected = {"momentum_concentration", "value_overfit", "low_sharpe", "high_turnover"}
         assert set(CORRECTIONS.keys()) == expected
+
+
+class TestEnrichedEvolutionState:
+    def test_optional_fields_default_none(self):
+        state = EvolutionState(
+            iteration=1,
+            best_return=0.05,
+            recent_failures=[],
+            failure_signatures={},
+        )
+        assert state.market_regime is None
+        assert state.market_breadth is None
+        assert state.volatility_index is None
+        assert state.cash_ratio is None
+        assert state.position_count is None
+        assert state.sector_concentration is None
+        assert state.unrealized_pnl is None
+
+    def test_optional_fields_set(self):
+        state = EvolutionState(
+            iteration=5,
+            best_return=0.12,
+            recent_failures=[],
+            failure_signatures={},
+            market_regime="bull",
+            market_breadth=1.8,
+            volatility_index=0.15,
+            cash_ratio=0.3,
+            position_count=15,
+            sector_concentration=0.25,
+            unrealized_pnl=50000.0,
+        )
+        assert state.market_regime == "bull"
+        assert state.cash_ratio == 0.3
+        assert state.position_count == 15
+
+    def test_should_continue_works_with_enriched_state(self):
+        state = EvolutionState(
+            iteration=5,
+            best_return=0.02,
+            recent_failures=[],
+            failure_signatures={},
+            market_regime="bear",
+            volatility_index=0.4,
+        )
+        should, reason = should_continue(state, target_return=0.10)
+        assert should is True
+        assert reason is None

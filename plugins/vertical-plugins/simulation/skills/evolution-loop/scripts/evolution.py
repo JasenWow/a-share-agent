@@ -4,7 +4,8 @@ Evolution loop control for strategy optimization.
 Provides state management, doom loop detection, and corrective action generation.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Optional
 
 
 @dataclass
@@ -13,8 +14,15 @@ class EvolutionState:
 
     iteration: int
     best_return: float
-    recent_failures: list[str]
-    failure_signatures: dict[str, int]
+    recent_failures: list[str] = field(default_factory=list)
+    failure_signatures: dict[str, int] = field(default_factory=dict)
+    market_regime: Optional[str] = None
+    market_breadth: Optional[float] = None
+    volatility_index: Optional[float] = None
+    cash_ratio: Optional[float] = None
+    position_count: Optional[int] = None
+    sector_concentration: Optional[float] = None
+    unrealized_pnl: Optional[float] = None
 
 
 # Constants
