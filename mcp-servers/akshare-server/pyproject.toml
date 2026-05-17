@@ -12,3 +12,6 @@ dependencies = [
 
 [project.scripts]
 akshare-mcp = "server:main"
+
+[tool.setuptools.packages.find]
+exclude = ["test_server"]

@@ -343,6 +343,21 @@ def index_stock_cons(symbol: str = "000300") -> list[dict]:
 
 
 @mcp.tool()
+def stock_board_concept_cons(symbol: str = "人工智能") -> list[dict]:
+    """
+    Get concept board constituent stock list.
+
+    Args:
+        symbol: Concept board name (e.g., "人工智能", "新能源", "芯片").
+    """
+    try:
+        df = ak.stock_board_concept_cons_em(symbol=symbol)
+        return df_to_json(df, max_rows=2000)
+    except Exception as e:
+        return [{"error": str(e), "tool": "stock_board_concept_cons", "symbol": symbol}]
+
+
+@mcp.tool()
 def stock_zh_index_daily(
     symbol: str = "sh000300",
     start_date: str = "",

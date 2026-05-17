@@ -54,3 +54,16 @@ class TestStockZhASpotMocked:
         result = stock_zh_a_spot()
         assert len(result) == 1
         assert "error" in result[0]
+
+
+class TestStockBoardConceptCons:
+    @patch("server.ak.stock_board_concept_cons_em")
+    def test_returns_constituent_list(self, mock_func):
+        mock_func.return_value = pd.DataFrame({
+            "代码": ["000001", "600519"],
+            "名称": ["平安银行", "贵州茅台"],
+        })
+        from server import stock_board_concept_cons
+        result = stock_board_concept_cons(symbol="人工智能")
+        assert len(result) == 2
+        assert result[0]["代码"] == "000001"
