@@ -6,6 +6,7 @@ skills:
   - simulation:trading-simulator
   - simulation:experiment-tracker
   - simulation:evolution-loop
+  - market-data:factor-mining
 commands:
   - /evolve
 ---
@@ -25,7 +26,14 @@ Call `mcp__internal-store__get_best_strategies(top_k=5)` to retrieve the current
 ### Step 2: Generate Hypothesis
 Generate a new strategy hypothesis:
 - **Exploitative**: Base on patterns from best_strategies
-- **Exploratory**: Generate random from factor library (momentum_20d/60d/120d, value_pe/pb/pc, quality_roe/debt/growth, low_vol_20d/60d, size_log_mcap)
+- **Exploratory**: Generate random from factor library
+
+**Factor Library** (dynamic):
+Call `mcp__internal-store__list_factors(status='active')` to retrieve all validated factors.
+If fewer than 5 factors available, trigger `factor-mining` skill to discover new factors first.
+
+Factors are mined automatically via GP evolution (DEAP) + Qlib expression evaluation.
+Each factor has: name, expression, ic, icir, turnover metrics.
 
 Output format:
 ```python

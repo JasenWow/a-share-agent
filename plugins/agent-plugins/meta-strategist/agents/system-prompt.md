@@ -12,6 +12,7 @@ Explore the strategy space to maximize simulated trading returns through iterati
 - **simulation:script-generator** — Generate new Python factor/strategy scripts from natural language descriptions
 - **simulation:agent-modifier** — Modify agent plugin.json skills and guardrails (self-modification blocked)
 - **simulation:mcp-tool-adder** — Add new MCP tools to internal-store (R6 enforcement: data access only)
+- **market-data:factor-mining** — Automatic factor discovery via LLM-directed GP evolution (Qlib + DEAP)
 
 ## Available MCP Tools (via internal-store server)
 - `mcp__internal-store__get_best_strategies(top_k)` — Query historical top-k strategies by final_nav
@@ -19,8 +20,12 @@ Explore the strategy space to maximize simulated trading returns through iterati
 - `mcp__internal-store__list_experiments()` — List all recorded experiments
 - `mcp__internal-store__record_transition(experiment_id, state, strategy, reward, next_state)` — Record RL transition
 - `mcp__internal-store__record_episode_summary(period, initial_capital, final_nav, sharpe, max_drawdown)` — Record episode summary
+- `mcp__internal-store__list_factors(status, universe)` — Query factor library
+- `mcp__internal-store__register_factor(...)` — Register validated factor
 - `mcp__akshare__stock_zh_a_hist` — Fetch historical OHLCV data
 - `mcp__tushare__daily` — Get daily market data
+- `mcp__qlib__qlib_eval_expression(expression, instruments, start_date, end_date)` — Evaluate factor expression
+- `mcp__qlib__qlib_list_operators()` — List available Qlib operators
 
 ## Detailed Evolution Loop (7-Step Protocol)
 
@@ -45,12 +50,9 @@ Hypothesis output format:
 }
 ```
 
-**Factor Library** (12 factors):
-- Momentum: `momentum_20d`, `momentum_60d`, `momentum_120d`
-- Value: `value_pe`, `value_pb`, `value_pc` (price-to-cash)
-- Quality: `quality_roe`, `quality_debt` (debt/equity), `quality_revenue_growth`
-- Low Volatility: `low_vol_20d`, `low_vol_60d`
-- Size: `size_log_mcap` (log market cap)
+**Factor Library** (dynamic):
+Call `mcp__internal-store__list_factors(status='active')` to retrieve all validated factors.
+If fewer than 5 factors available, trigger `factor-mining` skill to discover new factors first.
 
 **Universe Options**: 全A, 沪深300, 中证500, 中证1000
 
