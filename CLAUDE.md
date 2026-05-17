@@ -13,7 +13,7 @@ Four-layer, downward-only dependency: **Meta-Agent (L3) → Agent (L2) → Skill
 - **L3 Meta-Agent**: `meta-strategist` — autonomous strategy exploration via simulation
 - **L2 Agents**: `equity-researcher`, `strategy-analyst`, `portfolio-manager`, `market-monitor`
 - **L1 Skills**: organized by vertical (`market-data`, `equity-research`, `trading-strategy`, `simulation`, `market-monitor`)
-- **L0 Connectors**: `akshare-server` (8000), `tushare-server` (8001), `internal-store` (8002)
+- **L0 Connectors**: `akshare-server` (8000), `tushare-server` (8001), `internal-store` (8002), `qlib-server` (8003)
 
 Boundary rules enforced by `scripts/check.py`: R1–R6. See `contributing/architecture.md`.
 
@@ -25,6 +25,7 @@ uv run python scripts/check.py                  # Verify environment
 uv run uvicorn mcp-servers.akshare-server.server:mcp_app --port 8000
 TUSHARE_TOKEN=xxx uv run uvicorn mcp-servers.tushare-server.server:mcp_app --port 8001
 uv run uvicorn mcp-servers.internal-store.server:mcp_app --port 8002
+uv run uvicorn mcp-servers.qlib-server.server:mcp_app --port 8003
 ```
 
 ## Contributing

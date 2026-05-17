@@ -342,6 +342,7 @@ Skills are grouped by domain vertical under `plugins/vertical-plugins/<vertical>
 | factor-compute | ✓ `compute_factors.py`, `preprocess.py`, `neutralize.py` | Factor calculation engine (MAD → ZScore → neutralization) |
 | factor-library | — | Factor formula reference (momentum, value, quality, volatility...) |
 | data-preprocess | ✓ `filter_stocks.py` | ST/suspended/newly-listed/limit filter |
+| factor-mining | ✓ `mine_factors.py`, `gp_engine.py`, `operators.py`, `fitness.py`, `factor_library.py` | Automatic factor discovery via LLM-directed GP evolution |
 
 ### equity-research
 
@@ -386,6 +387,7 @@ Skills are grouped by domain vertical under `plugins/vertical-plugins/<vertical>
 | AKShare | `localhost:8000/mcp` | HTTP (FastMCP) | None | Real-time quotes, OHLCV, northbound flow, dragon-tiger, Shenwan classification |
 | Tushare | `localhost:8001/mcp` | HTTP (FastMCP) | Token (`TUSHARE_TOKEN`) | Financial statements, index weights (point-in-time), concept sectors |
 | Internal Store | `localhost:8002/mcp` | HTTP (FastMCP) | None | Cache, experiments, transitions, episode summaries, portfolio state |
+| Qlib | `localhost:8003/mcp` | HTTP (FastMCP) | None | Factor expression evaluation, operator catalog, A-share data via Qlib |
 
 ### Internal Store Schema
 
