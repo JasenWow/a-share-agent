@@ -1,0 +1,7 @@
+{
+  "name": "trading-strategy",
+  "version": "0.1.0",
+  "description": "Trading strategy: backtesting engine and Excel report generation",
+  "skills": ["backtest-engine", "xlsx-author"],
+  "mcp_dependencies": ["akshare", "tushare", "internal-store"]
+}
