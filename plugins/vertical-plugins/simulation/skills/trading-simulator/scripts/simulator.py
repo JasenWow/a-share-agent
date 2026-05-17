@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Optional
 
-from .market_rules import (
+from market_rules import (
     calculate_total_cost,
     get_price_limit,
     round_to_lot,

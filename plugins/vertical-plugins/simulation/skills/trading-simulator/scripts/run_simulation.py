@@ -10,6 +10,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from simulator import TradingSimulator
+from market_rules import (
+    calculate_total_cost,
+    get_price_limit,
+    round_to_lot,
+    MIN_LOT_SIZE,
+)
 
 
 def next_trading_day(d: date) -> date:

@@ -24,7 +24,6 @@ sys.path.insert(0, str(EVOLUTION_DIR / "trading-simulator" / "scripts"))
 
 from evolution import EvolutionState, should_continue
 from generate_hypothesis import generate_random_hypothesis, resolve_universe, UNIVERSE_CONFIGS
-from simulator import TradingSimulator
 from run_simulation import run_simulation
 
 # Config
