@@ -6,40 +6,43 @@
 
 ## Adding a New Skill
 
-Scope: creating a new skill under `plugins/vertical-plugins/a-share-analysis/skills/<skill-name>/` and wiring it into the system.
+Scope: creating a new skill under `plugins/vertical-plugins/<vertical>/skills/<skill-name>/` and wiring it into the system.
 
 ### Steps
 
-1. **Create the skill directory:**
-   ```
-   plugins/vertical-plugins/a-share-analysis/skills/<skill-name>/
-   ```
-   Use `kebab-case` for the directory name (e.g., `factor-screen`, `backtest-engine`).
+1. **Choose the vertical:**
+   Determine which vertical plugin the skill belongs to:
 
-2. **Write `SKILL.md`:**
+   | Vertical | Skills |
+   |----------|--------|
+   | `market-data` | Data fetching, factor computation, preprocessing |
+   | `equity-research` | Financial analysis, valuation, thesis tracking |
+   | `trading-strategy` | Backtest, signals, risk control |
+   | `simulation` | Trading simulator, experiment tracking, evolution loop |
+   | `market-monitor` | Breadth, northbound, sentiment |
+
+2. **Create the skill directory:**
+   ```
+   plugins/vertical-plugins/<vertical>/skills/<skill-name>/
+   ```
+   Use `kebab-case` for the directory name.
+
+3. **Write `SKILL.md`:**
    - **Trigger conditions**: "Triggers when: ..." and "Skips when: ..."
    - **Inputs**: table of parameters (name, type, required, description)
-   - **Outputs**: describe the output format (Markdown table, Excel, report)
-   - **Tool dependencies**: list MCP tools the skill uses (e.g., `akshare.stock_zh_a_spot`)
+   - **Outputs**: describe the output format
+   - **Tool dependencies**: list MCP tools the skill uses
    - **Execution steps**: numbered workflow with clear decision points
    - **Common mistakes**: table of what NOT to do
    - **Quality checklist**: bullet list of pre-output checks
 
-   Reference: `docs/交易系统构建设计/02-技能设计.md` for worked examples.
-
-3. **Write `prompt.md`:**
-   - Execution prompt template that Claude will follow when the skill is invoked.
-   - Include step-by-step instructions referencing the SKILL.md workflow.
-   - Define output format explicitly (column names, table structure, file naming).
-
 4. **Add executable scripts (if the skill has domain logic):**
    ```
    skills/<skill-name>/scripts/
-   ├── <script>.py         # Domain logic (factor calc, backtest engine, etc.)
+   ├── <script>.py         # Domain logic
    └── test_<script>.py    # Co-located tests
    ```
    - Scripts are invoked by agents via `uv run python <path>`
-   - Scripts may use MCP tools' data (passed as file paths or stdin JSON)
    - Scripts must NOT import code from `mcp-servers/`, `plugins/agent-plugins/`, or other skills
    - Scripts follow the same coding standards (ruff, type hints, error handling)
 
@@ -52,46 +55,25 @@ Scope: creating a new skill under `plugins/vertical-plugins/a-share-analysis/ski
 6. **Add examples:**
    ```
    skills/<skill-name>/examples/
-   ├── input-example.md    # Sample user input
-   └── output-example.md   # Expected output
+   ├── input-example.md
+   └── output-example.md
    ```
 
 7. **Register in vertical plugin:**
-   Edit `plugins/vertical-plugins/a-share-analysis/plugin.json`:
+   Edit `plugins/vertical-plugins/<vertical>/.claude-plugin/plugin.json`:
    - Add skill name to the `skills` array.
-   - If the skill has a slash command, also add to `commands` array.
 
 8. **Add command definition (if applicable):**
-   Create `plugins/vertical-plugins/a-share-analysis/commands/<cmd>.json`:
-   ```json
-   {
-     "name": "<cmd>",
-     "description": "What this command does",
-     "trigger": "/<cmd>",
-     "usage": "/<cmd> [args]",
-     "examples": ["/<cmd> example usage"],
-     "skill": "<skill-name>",
-     "agent": "<agent-name>",
-     "parameters": [
-       {
-         "name": "param",
-         "type": "string",
-         "description": "Parameter description",
-         "required": true
-       }
-     ]
-   }
-   ```
+   Create `plugins/vertical-plugins/<vertical>/commands/<cmd>.md` with YAML frontmatter.
 
 9. **Sync to agents:**
    ```bash
-   python scripts/sync-agent-skills.py
+   uv run python scripts/sync-agent-skills.py
    ```
-   This copies skill definitions into agent directories that reference them.
 
 10. **Write tests:**
-    - At minimum, validate that SKILL.md has required sections.
-    - If the skill includes scripts, write co-located `test_*.py` with fixture data.
+    - Validate SKILL.md has required sections.
+    - If scripts exist, write co-located `test_*.py` with fixture data.
 
 11. **Update agent references:**
     If existing agents should use this skill, update their `plugin.json` `skills` array.
@@ -99,8 +81,8 @@ Scope: creating a new skill under `plugins/vertical-plugins/a-share-analysis/ski
 ### Verify
 
 ```bash
-python scripts/check.py                            # Structure validation
-python scripts/sync-agent-skills.py --check         # Skill references in sync
+uv run python scripts/check.py
+uv run python scripts/sync-agent-skills.py --check
 # Test the skill end-to-end with a sample prompt
 ```
 
@@ -123,15 +105,11 @@ Scope: creating a new agent plugin under `plugins/agent-plugins/<agent-name>/` w
    - **Persona**: "You are the [Agent Name] — a [role description]."
    - **Deliverables**: numbered list of outputs the agent produces.
    - **Workflow**: numbered execution steps with MCP tool calls.
-   - **Guardrails**: hard rules that must never be violated (A-share exclusions, citation mandate, etc.).
-
-   Reference: `docs/交易系统构建设计/01-Agent设计.md` for worked examples.
+   - **Guardrails**: hard rules that must never be violated.
 
 3. **Write `system-prompt.md`:**
    - Full system prompt for Claude, including identity, capabilities, available skills, data access pattern, output guidelines, and constraints.
    - Reference the tools available: `mcp__akshare__*`, `mcp__tushare__*`, etc.
-
-   Reference: `docs/交易系统构建设计/04-目录结构与实现指南.md` section 3.3 for template.
 
 4. **Write `plugin.json`:**
    ```json
@@ -142,7 +120,7 @@ Scope: creating a new agent plugin under `plugins/agent-plugins/<agent-name>/` w
      "version": "0.1.0",
      "type": "agent-plugin",
      "skills": [
-       "a-share-analysis:<skill-name>"
+       "<vertical>:<skill-name>"
      ],
      "commands": ["<cmd>"],
      "mcp_dependencies": ["akshare", "tushare", "internal-store"],
@@ -152,35 +130,25 @@ Scope: creating a new agent plugin under `plugins/agent-plugins/<agent-name>/` w
    ```
 
 5. **Register slash commands (if any):**
-   - Create command JSON files in `plugins/vertical-plugins/a-share-analysis/commands/`.
-   - Set the `"agent"` field to your agent name.
+   Create command definitions in the relevant vertical plugin's `commands/` directory.
 
-6. **Update vertical plugin:**
-   - If adding new commands, update `plugin.json` commands array.
-
-7. **Run checks:**
+6. **Run checks:**
    ```bash
-   python scripts/check.py
-   python scripts/sync-agent-skills.py
+   uv run python scripts/check.py
+   uv run python scripts/sync-agent-skills.py
    ```
 
-8. **Test with sample prompts:**
-   - Test the primary use case (e.g., `/screen 沪深300 PE<20 ROE>15`).
-   - Test guardrails (e.g., verify ST stocks are excluded).
-   - Test error handling (e.g., invalid stock code, data source unavailable).
-
-9. **Verify guardrails hold:**
-   - A-share exclusion rules are enforced (see `a-share-rules.md`).
-   - Citation mandate: output includes data source and timestamp.
-   - No auto-trading language in output.
-   - Risk disclaimer present.
+7. **Test with sample prompts:**
+   - Test the primary use case.
+   - Test guardrails (A-share exclusion rules, citation mandate).
+   - Test error handling.
 
 ### Verify
 
 ```bash
-python scripts/check.py
-python scripts/sync-agent-skills.py --check
-# Test agent with 3+ sample prompts covering happy path and guardrails
+uv run python scripts/check.py
+uv run python scripts/sync-agent-skills.py --check
+# Test agent with 3+ sample prompts
 ```
 
 ---
@@ -195,15 +163,9 @@ Scope: adding a new `@mcp.tool()` function to an existing MCP server.
    ```python
    @mcp.tool()
    def new_tool_name(param1: str, param2: str = "default") -> list[dict]:
-       """
-       Description of what this tool returns.
-
-       Args:
-           param1: Required parameter description.
-           param2: Optional parameter description.
-       """
+       """Description of what this tool returns."""
        try:
-           df = data_source.function(param1=param1, param2=param2)
+           df = data_source.function(param1=param1)
            if df.empty:
                return [{"warning": f"No data for param1={param1}"}]
            return df_to_json(df)
@@ -212,37 +174,24 @@ Scope: adding a new `@mcp.tool()` function to an existing MCP server.
    ```
 
 2. **Follow naming conventions:**
-   - Tool name matches the upstream API function name (e.g., `stock_zh_a_spot` for `ak.stock_zh_a_spot_em()`).
+   - Tool name matches the upstream API function name.
    - Use `snake_case` for tool names and parameters.
 
-3. **Update server README:**
-   Add a row to the tool documentation table:
-   | Tool Name | Upstream Function | Description | Key Parameters |
+3. **Update server README.**
 
 4. **Write tests** in `test_server.py`:
-   - Happy path: mock the upstream API, call the tool, assert response shape.
-   - Error path: mock a failure, assert error dict is returned.
-   - Edge case: mock empty DataFrame, assert warning is returned.
+   - Happy path, error path, edge case.
 
-5. **Update agent system prompts** (if agents need the new tool):
-   Add the tool to the relevant agent's `system-prompt.md` under available tools.
-
-6. **Update skill files** (if skills reference the new tool):
-   Add to the "Tool dependencies" section of relevant SKILL.md files.
+5. **Update agent system prompts and skill files** if they reference the new tool.
 
 ### Verify
 
 ```bash
-# Restart the MCP server
-uvicorn mcp-servers/<name>/server:mcp_app --port 800X
-
-# Verify tool is registered
+uv run uvicorn mcp-servers/<name>/server:mcp_app --port 800X
 curl http://localhost:800X/mcp -X POST \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","method":"tools/list","id":1}'
-
-# Run tests
-pytest mcp-servers/<name>/test_server.py -v
+uv run pytest mcp-servers/<name>/test_server.py -v
 ```
 
 ---
@@ -253,55 +202,105 @@ Scope: creating a new `/command` that triggers a skill and/or agent.
 
 ### Steps
 
-1. **Create the command definition:**
-   `plugins/vertical-plugins/a-share-analysis/commands/<cmd>.json`
-   ```json
-   {
-     "name": "<cmd>",
-     "description": "What this command does",
-     "trigger": "/<cmd>",
-     "usage": "/<cmd> [args]",
-     "examples": [
-       "/<cmd> example 1",
-       "/<cmd> example 2"
-     ],
-     "skill": "<skill-name>",
-     "agent": "<agent-name>",
-     "parameters": [
-       {
-         "name": "param_name",
-         "type": "string",
-         "description": "What this parameter controls",
-         "default": "default_value"
-       }
-     ]
-   }
-   ```
+1. **Create the command definition** in the relevant vertical plugin's `commands/` directory.
 
-2. **Ensure the linked skill exists:**
-   - `"skill"` must match a directory under `skills/`.
-   - If the skill doesn't exist yet, follow the "Adding a New Skill" playbook first.
+2. **Ensure the linked skill and agent exist.**
 
-3. **Ensure the linked agent exists:**
-   - `"agent"` must match a directory under `agent-plugins/`.
-   - The agent's `plugin.json` must include this command in its `commands` array.
+3. **Register in vertical plugin's `plugin.json`.**
 
-4. **Register in vertical plugin:**
-   Update `plugins/vertical-plugins/a-share-analysis/plugin.json`:
-   - Add command name to the `commands` array.
+4. **Update `contributing/README.md`** slash command table.
 
-5. **Update contributing index:**
-   Add the command to the slash command table in `contributing/README.md`.
-
-6. **Test invocation:**
-   - Type `/<cmd>` with and without arguments.
-   - Verify it triggers the correct skill and agent.
-   - Verify error handling for invalid arguments.
+5. **Test invocation** with and without arguments.
 
 ### Verify
 
 ```bash
-python scripts/check.py
-python scripts/sync-agent-skills.py --check
-# Test command invocation manually
+uv run python scripts/check.py
+uv run python scripts/sync-agent-skills.py --check
+```
+
+---
+
+## Adding a Simulation Component
+
+Scope: extending the trading simulator or memory store in `plugins/vertical-plugins/simulation/`.
+
+### Steps
+
+1. **Identify the target skill:**
+
+   | Skill | Purpose |
+   |-------|---------|
+   | `trading-simulator` | Core simulation engine (simulator.py, market_rules.py) |
+   | `experiment-tracker` | Experiment recording + lineage (track_experiment.py) |
+   | `evolution-loop` | Iteration control + doom loop detection (evolution.py) |
+
+2. **Write or modify scripts:**
+   - Scripts in `simulation/skills/<skill>/scripts/` are standalone Python executables.
+   - They may read/write to `internal-store` via SQLite directly (not through MCP, for performance).
+   - They must NOT import code from other vertical plugins or agent plugins.
+
+3. **Update internal-store schema if needed:**
+   - Add new tables to `mcp-servers/internal-store/schema.sql`.
+   - Add corresponding MCP tools for querying new data.
+   - Update `contributing/AGENTS.md` Internal Store Schema section.
+
+4. **Write tests:**
+   - Test with fixture data (simulated market data).
+   - Verify A-share rules are enforced (T+1, limits, costs).
+   - Verify transitions are recorded correctly.
+
+5. **Update notebooks** if the new data should be visualized.
+
+### Verify
+
+```bash
+uv run python scripts/check.py
+uv run pytest plugins/vertical-plugins/simulation/ -v
+# Run a test simulation end-to-end
+uv run python plugins/vertical-plugins/simulation/skills/trading-simulator/scripts/run_simulation.py \
+  --capital 1000000 --start 20240101 --end 20250101 --config test_config.json
+```
+
+---
+
+## Adding a New Factor
+
+Scope: adding a new alpha factor to `market-data/factor-library/` and its computation logic.
+
+### Steps
+
+1. **Document the factor:**
+   Create `market-data/skills/factor-library/references/<factor-name>.md`:
+   - Formula (with LaTeX)
+   - Input data requirements (which MCP tools)
+   - Lookback period
+   - Expected range and distribution
+   - Known issues (survivorship bias, lookahead bias, etc.)
+
+2. **Add computation logic:**
+   Add a function to `market-data/skills/factor-compute/scripts/compute_factors.py`:
+   - Input: DataFrame with required columns
+   - Output: Series with factor values
+   - Apply MAD Winsorization (3σ) and ZScore
+
+3. **Register in factor library:**
+   Update `market-data/skills/factor-library/SKILL.md` with the new factor entry.
+
+4. **Write tests:**
+   - Test with known input → expected output.
+   - Test NaN handling.
+   - Test with A-share exclusion rules applied.
+
+5. **Make available to Meta-Agent:**
+   The Meta-Agent's strategy space automatically includes new factors once they are in the factor library.
+
+### Verify
+
+```bash
+uv run python -c "
+from plugins.vertical-plugins.market-data.skills.factor-compute.scripts.compute_factors import compute_<factor>
+import pandas as pd
+# test with sample data
+"
 ```
