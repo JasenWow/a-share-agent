@@ -50,6 +50,35 @@ def record_experiment_to_db(name: str, strategy: dict, params: dict, result: dic
     return experiment_id
 
 
+def record_step_to_db(
+    experiment_id: int,
+    step_index: int,
+    step_type: str,
+    hypothesis: dict,
+    signals_summary: dict | None = None,
+    simulation_result: dict | None = None,
+    state_snapshot: dict | None = None,
+) -> int:
+    """Record a single experiment step to SQLite, return the step ID."""
+    conn = sqlite3.connect(str(DB_PATH))
+    cursor = conn.execute(
+        "INSERT INTO experiment_steps (experiment_id, step_index, step_type, hypothesis, signals_summary, simulation_result, state_snapshot) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (
+            experiment_id,
+            step_index,
+            step_type,
+            json.dumps(hypothesis, sort_keys=True),
+            json.dumps(signals_summary, sort_keys=True) if signals_summary else None,
+            json.dumps(simulation_result, sort_keys=True) if simulation_result else None,
+            json.dumps(state_snapshot, sort_keys=True) if state_snapshot else None,
+        ),
+    )
+    step_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return step_id
+
+
 def run_validation():
     print("=== Meta-Agent Evolution Loop Validation ===")
     print(f"Period: {START_DATE} → {END_DATE}")
@@ -106,6 +135,12 @@ def run_validation():
                     })
             current += timedelta(days=1)
 
+        signals_summary = {
+            "total_signals": len(signals),
+            "date_range": f"{START_DATE} to {END_DATE}",
+            "unique_codes": len(set(s["code"] for s in signals)),
+        }
+
         try:
             results = run_simulation(
                 initial_capital=INITIAL_CAPITAL,
@@ -136,6 +171,57 @@ def run_validation():
             print(f"  Recorded experiment #{exp_id}")
         except Exception as e:
             print(f"  RECORD ERROR: {e}")
+            exp_id = None
+
+        # 4. Record experiment steps
+        if exp_id is not None:
+            try:
+                # Step 0: Hypothesis generated
+                record_step_to_db(
+                    experiment_id=exp_id,
+                    step_index=0,
+                    step_type="hypothesis",
+                    hypothesis=hypothesis,
+                    signals_summary=None,
+                    simulation_result=None,
+                    state_snapshot={
+                        "iteration": state.iteration,
+                        "best_return": state.best_return,
+                    },
+                )
+
+                # Step 1: Signals generated
+                record_step_to_db(
+                    experiment_id=exp_id,
+                    step_index=1,
+                    step_type="signals",
+                    hypothesis=hypothesis,
+                    signals_summary=signals_summary,
+                    simulation_result=None,
+                    state_snapshot=None,
+                )
+
+                # Step 2: Simulation completed
+                record_step_to_db(
+                    experiment_id=exp_id,
+                    step_index=2,
+                    step_type="simulation",
+                    hypothesis=hypothesis,
+                    signals_summary=signals_summary,
+                    simulation_result={
+                        "total_return_pct": results.get("total_return_pct", 0),
+                        "final_capital": results.get("final_capital", 0),
+                        "trade_count": results.get("trade_count", 0),
+                        "total_return": total_return,
+                    },
+                    state_snapshot={
+                        "iteration": state.iteration,
+                        "best_return": state.best_return,
+                    },
+                )
+                print(f"  Recorded 3 steps for experiment #{exp_id}")
+            except Exception as e:
+                print(f"  STEP RECORD ERROR: {e}")
 
         # 4. Update state
         if total_return > state.best_return:

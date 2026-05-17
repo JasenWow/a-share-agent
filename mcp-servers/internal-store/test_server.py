@@ -67,6 +67,17 @@ def temp_db(tmp_path):
             max_drawdown REAL NOT NULL,
             created_at TEXT DEFAULT (datetime('now'))
         );
+        CREATE TABLE IF NOT EXISTS experiment_steps (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            experiment_id INTEGER NOT NULL,
+            step_index INTEGER NOT NULL,
+            step_type TEXT NOT NULL,
+            hypothesis TEXT NOT NULL,
+            signals_summary TEXT,
+            simulation_result TEXT,
+            state_snapshot TEXT,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
     """
     )
     conn.commit()
@@ -242,6 +253,76 @@ class TestNoTemplateArtifacts:
         import inspect
         source = inspect.getsource(server)
         assert "def list_cache" not in source, "list_cache function should be removed"
+
+
+class TestRecordExperimentStep:
+    def test_records_step_with_all_fields(self, temp_db):
+        with patch("server.DB_PATH", temp_db):
+            from server import record_experiment, record_experiment_step
+
+            exp_id = record_experiment("step_test", {"type": "momentum"}, {}, {"final_nav": 1.1})[0]["id"]
+            step = record_experiment_step(
+                experiment_id=exp_id,
+                step_index=0,
+                step_type="hypothesis",
+                hypothesis={"factors": ["momentum_20d"], "weights": {"momentum_20d": 1.0}},
+                signals_summary={"total_signals": 50},
+                simulation_result={"total_return_pct": 5.0},
+                state_snapshot={"iteration": 1, "best_return": 0.05},
+            )
+            assert len(step) == 1
+            assert step[0]["step_type"] == "hypothesis"
+            assert step[0]["experiment_id"] == exp_id
+
+    def test_records_step_with_minimal_fields(self, temp_db):
+        with patch("server.DB_PATH", temp_db):
+            from server import record_experiment, record_experiment_step
+
+            exp_id = record_experiment("step_test2", {"type": "value"}, {}, {"final_nav": 1.0})[0]["id"]
+            step = record_experiment_step(
+                experiment_id=exp_id,
+                step_index=0,
+                step_type="hypothesis",
+                hypothesis={"factors": ["value_pe"]},
+            )
+            assert len(step) == 1
+            assert step[0]["signals_summary"] is None
+
+
+class TestListExperimentSteps:
+    def test_lists_steps_in_order(self, temp_db):
+        with patch("server.DB_PATH", temp_db):
+            from server import record_experiment, record_experiment_step, list_experiment_steps
+
+            exp_id = record_experiment("steps_order_test", {"type": "a"}, {}, {"final_nav": 1.0})[0]["id"]
+            record_experiment_step(exp_id, 0, "hypothesis", {"factors": ["a"]})
+            record_experiment_step(exp_id, 1, "signals", {"total": 10})
+            record_experiment_step(exp_id, 2, "simulation", {"return": 0.05})
+            steps = list_experiment_steps(exp_id)
+            assert len(steps) == 3
+            assert steps[0]["step_index"] == 0
+            assert steps[1]["step_index"] == 1
+            assert steps[2]["step_index"] == 2
+
+    def test_returns_empty_for_unknown_experiment(self, temp_db):
+        with patch("server.DB_PATH", temp_db):
+            from server import list_experiment_steps
+
+            steps = list_experiment_steps(9999)
+            assert steps == []
+
+
+class TestGetLatestStep:
+    def test_returns_last_step_by_index(self, temp_db):
+        with patch("server.DB_PATH", temp_db):
+            from server import record_experiment, record_experiment_step, get_latest_step
+
+            exp_id = record_experiment("latest_step_test", {"type": "b"}, {}, {"final_nav": 1.0})[0]["id"]
+            record_experiment_step(exp_id, 0, "hypothesis", {"factors": ["b"]})
+            record_experiment_step(exp_id, 1, "signals", {"total": 20})
+            latest = get_latest_step(exp_id)
+            assert len(latest) == 1
+            assert latest[0]["step_index"] == 1
 
 
 class TestGetTransitionMatrix:

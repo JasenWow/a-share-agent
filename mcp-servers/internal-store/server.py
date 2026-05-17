@@ -82,6 +82,17 @@ def _init_db():
             max_drawdown    REAL NOT NULL,
             created_at      TEXT DEFAULT (datetime('now'))
         );
+        CREATE TABLE IF NOT EXISTS experiment_steps (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            experiment_id   INTEGER NOT NULL,
+            step_index      INTEGER NOT NULL,
+            step_type       TEXT NOT NULL,
+            hypothesis      TEXT NOT NULL,
+            signals_summary TEXT,
+            simulation_result TEXT,
+            state_snapshot  TEXT,
+            created_at      TEXT DEFAULT (datetime('now'))
+        );
     """
     )
     conn.commit()
@@ -377,6 +388,96 @@ def get_transition_matrix(state_vector: dict) -> dict:
         }
     except Exception as e:
         return {"error": str(e), "tool": "get_transition_matrix"}
+
+
+@mcp.tool()
+def record_experiment_step(
+    experiment_id: int,
+    step_index: int,
+    step_type: str,
+    hypothesis: dict,
+    signals_summary: dict | None = None,
+    simulation_result: dict | None = None,
+    state_snapshot: dict | None = None,
+) -> list[dict]:
+    """
+    Record a single step within an evolution loop iteration.
+
+    Each iteration can have multiple steps (hypothesis generation, signal generation,
+    simulation, state update). This provides fine-grained experiment tracking.
+
+    Args:
+        experiment_id:     ID of the parent experiment.
+        step_index:        Step number within the iteration (0-based).
+        step_type:         Step type: "hypothesis", "signals", "simulation", "state_update".
+        hypothesis:        Strategy hypothesis dict (factors, weights, universe, etc.).
+        signals_summary:   Optional summary of generated signals (count, date range, etc.).
+        simulation_result: Optional simulation output (return_pct, trades, etc.).
+        state_snapshot:    Optional evolution state snapshot at this step.
+    """
+    try:
+        conn = sqlite3.connect(str(DB_PATH))
+        conn.row_factory = sqlite3.Row
+        conn.execute(
+            "INSERT INTO experiment_steps (experiment_id, step_index, step_type, hypothesis, signals_summary, simulation_result, state_snapshot) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (
+                experiment_id,
+                step_index,
+                step_type,
+                json.dumps(hypothesis, sort_keys=True),
+                json.dumps(signals_summary, sort_keys=True) if signals_summary else None,
+                json.dumps(simulation_result, sort_keys=True) if simulation_result else None,
+                json.dumps(state_snapshot, sort_keys=True) if state_snapshot else None,
+            ),
+        )
+        rows = conn.execute("SELECT * FROM experiment_steps ORDER BY id DESC LIMIT 1").fetchall()
+        conn.commit()
+        conn.close()
+        return [dict(r) for r in rows]
+    except Exception as e:
+        return [{"error": str(e), "tool": "record_experiment_step"}]
+
+
+@mcp.tool()
+def list_experiment_steps(experiment_id: int) -> list[dict]:
+    """
+    List all steps for a given experiment, ordered by step_index.
+
+    Args:
+        experiment_id: ID of the experiment.
+    """
+    try:
+        conn = sqlite3.connect(str(DB_PATH))
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            "SELECT * FROM experiment_steps WHERE experiment_id=? ORDER BY step_index ASC",
+            (experiment_id,),
+        ).fetchall()
+        conn.close()
+        return [dict(r) for r in rows]
+    except Exception as e:
+        return [{"error": str(e), "tool": "list_experiment_steps"}]
+
+
+@mcp.tool()
+def get_latest_step(experiment_id: int) -> list[dict]:
+    """
+    Get the most recent step for an experiment.
+
+    Args:
+        experiment_id: ID of the experiment.
+    """
+    try:
+        conn = sqlite3.connect(str(DB_PATH))
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            "SELECT * FROM experiment_steps WHERE experiment_id=? ORDER BY step_index DESC LIMIT 1",
+            (experiment_id,),
+        ).fetchall()
+        conn.close()
+        return [dict(r) for r in rows]
+    except Exception as e:
+        return [{"error": str(e), "tool": "get_latest_step"}]
 
 
 @mcp.tool()
