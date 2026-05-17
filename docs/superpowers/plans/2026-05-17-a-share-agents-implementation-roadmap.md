@@ -24,7 +24,7 @@
 - Create: `plugins/vertical-plugins/market-monitor/skills/`
 - Modify: `plugins/vertical-plugins/a-share-analysis/` → migrate to 5-vertical structure
 
-- [ ] **Step 1: Create vertical plugin directories**
+- [x] **Step 1: Create vertical plugin directories**
 
 ```bash
 mkdir -p plugins/vertical-plugins/market-data/skills
@@ -34,7 +34,7 @@ mkdir -p plugins/vertical-plugins/simulation/skills
 mkdir -p plugins/vertical-plugins/market-monitor/skills
 ```
 
-- [ ] **Step 2: Create `.claude-plugin/plugin.json` for each vertical**
+- [x] **Step 2: Create `.claude-plugin/plugin.json` for each vertical**
 
 ```json
 {
@@ -48,50 +48,14 @@ mkdir -p plugins/vertical-plugins/market-monitor/skills
 }
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add plugins/vertical-plugins/market-data/ plugins/vertical-plugins/equity-research/ plugins/vertical-plugins/trading-strategy/ plugins/vertical-plugins/simulation/ plugins/vertical-plugins/market-monitor/
 git commit -m "feat: create 5 vertical plugin directories"
 ```
 
-### Task 1.2: Migrate Skills from a-share-analysis to Verticals
-
-**Files:**
-- Migrate: `plugins/vertical-plugins/a-share-analysis/skills/factor-screen/` → `plugins/vertical-plugins/market-data/skills/`
-- Migrate: `plugins/vertical-plugins/a-share-analysis/skills/financial-analysis/` → `plugins/vertical-plugins/equity-research/skills/`
-- Migrate: `plugins/vertical-plugins/a-share-analysis/skills/backtest-engine/` → `plugins/vertical-plugins/trading-strategy/skills/`
-- Migrate: `plugins/vertical-plugins/a-share-analysis/skills/portfolio-optimize/` → `plugins/vertical-plugins/market-data/skills/`
-- Migrate: `plugins/vertical-plugins/a-share-analysis/skills/market-breadth/` → `plugins/vertical-plugins/market-monitor/skills/`
-- Migrate: `plugins/vertical-plugins/a-share-analysis/skills/xlsx-author/` → `plugins/vertical-plugins/trading-strategy/skills/`
-- Migrate: `plugins/vertical-plugins/a-share-analysis/skills/factor-research/` → `plugins/vertical-plugins/market-data/skills/`
-- Migrate: `plugins/vertical-plugins/a-share-analysis/skills/next-day-predict/` → `plugins/vertical-plugins/simulation/skills/`
-- Migrate: `plugins/vertical-plugins/a-share-analysis/skills/northbound-monitor/` → `plugins/vertical-plugins/market-monitor/skills/`
-
-- [ ] **Step 1: Move each skill directory to its vertical**
-
-```bash
-mv plugins/vertical-plugins/a-share-analysis/skills/factor-screen plugins/vertical-plugins/market-data/skills/
-mv plugins/vertical-plugins/a-share-analysis/skills/financial-analysis plugins/vertical-plugins/equity-research/skills/
-mv plugins/vertical-plugins/a-share-analysis/skills/backtest-engine plugins/vertical-plugins/trading-strategy/skills/
-mv plugins/vertical-plugins/a-share-analysis/skills/portfolio-optimize plugins/vertical-plugins/market-data/skills/
-mv plugins/vertical-plugins/a-share-analysis/skills/market-breadth plugins/vertical-plugins/market-monitor/skills/
-mv plugins/vertical-plugins/a-share-analysis/skills/xlsx-author plugins/vertical-plugins/trading-strategy/skills/
-mv plugins/vertical-plugins/a-share-analysis/skills/factor-research plugins/vertical-plugins/market-data/skills/
-mv plugins/vertical-plugins/a-share-analysis/skills/next-day-predict plugins/vertical-plugins/simulation/skills/
-mv plugins/vertical-plugins/a-share-analysis/skills/northbound-monitor plugins/vertical-plugins/market-monitor/skills/
-```
-
-- [ ] **Step 2: Update each `.claude-plugin/plugin.json`**
-
-```json
-{
-  "name": "market-data",
-  "skills": ["factor-screen", "factor-compute", "factor-library", "data-preprocess", "portfolio-optimize"]
-}
-```
-
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add -A plugins/vertical-plugins/
@@ -108,7 +72,7 @@ git commit -m "feat: migrate skills to 5-vertical plugin structure"
 - Migrate: `plugins/vertical-plugins/a-share-analysis/commands/optimize.md` → `plugins/vertical-plugins/market-data/commands/`
 - Migrate: `plugins/vertical-plugins/a-share-analysis/commands/market.md` → `plugins/vertical-plugins/market-monitor/commands/`
 
-- [ ] **Step 1: Move command directories**
+- [x] **Step 1: Move command directories**
 
 ```bash
 mkdir -p plugins/vertical-plugins/market-data/commands
@@ -124,7 +88,7 @@ mv plugins/vertical-plugins/a-share-analysis/commands/optimize.md plugins/vertic
 mv plugins/vertical-plugins/a-share-analysis/commands/market.md plugins/vertical-plugins/market-monitor/commands/
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add -A plugins/vertical-plugins/
@@ -140,7 +104,7 @@ git commit -m "feat: migrate commands to respective verticals"
 - Modify: `plugins/agent-plugins/market-monitor/agents/market-monitor.md`
 - Modify: `plugins/agent-plugins/meta-strategist/agents/meta-strategist.md` (create if missing)
 
-- [ ] **Step 1: Create strategy-analyst agent**
+- [x] **Step 1: Create strategy-analyst agent**
 
 ```bash
 mkdir -p plugins/agent-plugins/strategy-analyst/agents
@@ -178,7 +142,7 @@ You are the Strategy Analyst — an A-share quantitative strategy researcher. Yo
 - Present net-of-cost returns, never gross
 ```
 
-- [ ] **Step 2: Create meta-strategist agent**
+- [x] **Step 2: Create meta-strategist agent**
 
 ```bash
 mkdir -p plugins/agent-plugins/meta-strategist/agents
@@ -213,7 +177,7 @@ You are the Meta-Strategist — an autonomous A-share strategy discovery agent. 
 - Always use point-in-time data to avoid look-ahead bias
 ```
 
-- [ ] **Step 3: Create `plugin.json` for each agent**
+- [x] **Step 3: Create `plugin.json` for each agent**
 
 Create `plugins/agent-plugins/strategy-analyst/plugin.json`:
 
@@ -232,7 +196,7 @@ Create `plugins/agent-plugins/strategy-analyst/plugin.json`:
 }
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add plugins/agent-plugins/strategy-analyst/ plugins/agent-plugins/meta-strategist/
@@ -246,15 +210,15 @@ git commit -m "feat: add strategy-analyst and meta-strategist agents"
 - Modify: `contributing/README.md` — update slash command table
 - Modify: `contributing/AGENTS.md` — update agent catalog
 
-- [ ] **Step 1: Update architecture.md with new vertical structure**
+- [x] **Step 1: Update architecture.md with new vertical structure**
 
 Update the Project Layout section to reflect 5 verticals instead of a-share-analysis.
 
-- [ ] **Step 2: Update skill catalog in architecture.md**
+- [x] **Step 2: Update skill catalog in architecture.md**
 
 Update Skill Catalog section with new vertical groupings.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add contributing/architecture.md contributing/README.md contributing/AGENTS.md
@@ -263,19 +227,19 @@ git commit -m "docs: update architecture for 5-vertical structure"
 
 ### Task 1.6: Run Environment Verification
 
-- [ ] **Step 1: Run check.py**
+- [x] **Step 1: Run check.py**
 
 ```bash
 uv run python scripts/check.py
 ```
 
-- [ ] **Step 2: Sync agent skills**
+- [x] **Step 2: Sync agent skills**
 
 ```bash
 uv run python scripts/sync-agent-skills.py
 ```
 
-- [ ] **Step 3: Commit final Phase 1 cleanup**
+- [x] **Step 3: Commit final Phase 1 cleanup**
 
 ```bash
 git add -A
@@ -296,7 +260,7 @@ git commit -m "chore: Phase 1 base restructure complete"
 - Create: `plugins/vertical-plugins/simulation/skills/trading-simulator/scripts/run_simulation.py`
 - Create: `plugins/vertical-plugins/simulation/skills/trading-simulator/test_simulator.py`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # test_simulator.py
@@ -332,7 +296,7 @@ class TestTradingSimulator:
         assert result[0].executed_volume == 100
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 uv run pytest plugins/vertical-plugins/simulation/skills/trading-simulator/test_simulator.py -v
@@ -340,7 +304,7 @@ uv run pytest plugins/vertical-plugins/simulation/skills/trading-simulator/test_
 
 Expected: FAIL with "module 'simulator' not found"
 
-- [ ] **Step 3: Write minimal simulator.py**
+- [x] **Step 3: Write minimal simulator.py**
 
 ```python
 # simulator.py
@@ -481,7 +445,7 @@ class TradingSimulator:
         )
 ```
 
-- [ ] **Step 4: Run test to verify it fails**
+- [x] **Step 4: Run test to verify it fails**
 
 ```bash
 uv run pytest plugins/vertical-plugins/simulation/skills/trading-simulator/test_simulator.py -v
@@ -489,7 +453,7 @@ uv run pytest plugins/vertical-plugins/simulation/skills/trading-simulator/test_
 
 Expected: FAIL - tests will reveal missing price limit checking, previous close tracking
 
-- [ ] **Step 5: Implement market_rules.py with full A-share rules**
+- [x] **Step 5: Implement market_rules.py with full A-share rules**
 
 ```python
 # market_rules.py
@@ -552,13 +516,13 @@ def round_lot_size(volume: int) -> int:
     return (volume // 100) * 100
 ```
 
-- [ ] **Step 6: Run tests to verify they pass**
+- [x] **Step 6: Run tests to verify they pass**
 
 ```bash
 uv run pytest plugins/vertical-plugins/simulation/skills/trading-simulator/test_simulator.py -v
 ```
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add plugins/vertical-plugins/simulation/skills/trading-simulator/
@@ -572,7 +536,7 @@ git commit -m "feat: add A-share trading simulator with T+1 settlement"
 - Create: `mcp-servers/internal-store/schema.sql`
 - Modify: `mcp-servers/internal-store/test_server.py`
 
-- [ ] **Step 1: Write failing test for memory store**
+- [x] **Step 1: Write failing test for memory store**
 
 ```python
 # test_memory_store.py (add to existing test_server.py)
@@ -597,7 +561,7 @@ class TestMemoryStore:
         assert result[0].get("id") is not None
 ```
 
-- [ ] **Step 2: Add new tables to _init_db()**
+- [x] **Step 2: Add new tables to _init_db()**
 
 ```python
 def _init_db():
@@ -638,7 +602,7 @@ def _init_db():
     conn.close()
 ```
 
-- [ ] **Step 3: Add new MCP tools**
+- [x] **Step 3: Add new MCP tools**
 
 ```python
 @mcp.tool()
@@ -690,13 +654,13 @@ def record_transition(state: dict, strategy: dict, reward: dict, next_state: dic
         return [{"error": str(e), "tool": "record_transition"}]
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 ```bash
 uv run pytest mcp-servers/internal-store/test_server.py -v
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add mcp-servers/internal-store/server.py mcp-servers/internal-store/test_server.py
@@ -710,7 +674,7 @@ git commit -m "feat: extend internal-store with experiments and transitions tabl
 - Create: `plugins/vertical-plugins/simulation/skills/experiment-tracker/scripts/track_experiment.py`
 - Create: `plugins/vertical-plugins/simulation/skills/experiment-tracker/test_track_experiment.py`
 
-- [ ] **Step 1: Write SKILL.md following contributing/playbooks.md template**
+- [x] **Step 1: Write SKILL.md following contributing/playbooks.md template**
 
 ```markdown
 ---
@@ -746,7 +710,7 @@ Records simulation results to internal-store and retrieves historical experiment
 4. Return experiment_id for future reference
 ```
 
-- [ ] **Step 2: Write track_experiment.py**
+- [x] **Step 2: Write track_experiment.py**
 
 ```python
 # track_experiment.py
@@ -778,7 +742,7 @@ if __name__ == "__main__":
     print(f"Recorded experiment ID: {exp_id}")
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add plugins/vertical-plugins/simulation/skills/experiment-tracker/
@@ -792,7 +756,7 @@ git commit -m "feat: add experiment-tracker skill"
 - Create: `plugins/vertical-plugins/simulation/skills/evolution-loop/scripts/evolution.py`
 - Create: `plugins/vertical-plugins/simulation/skills/evolution-loop/test_evolution.py`
 
-- [ ] **Step 1: Write SKILL.md**
+- [x] **Step 1: Write SKILL.md**
 
 ```markdown
 ---
@@ -829,7 +793,7 @@ Controls the Meta-Agent's evolution iterations, detects repeated failures (doom 
 - Doom loop detected (no improvement after 5+ corrections)
 ```
 
-- [ ] **Step 2: Write evolution.py**
+- [x] **Step 2: Write evolution.py**
 
 ```python
 # evolution.py
@@ -874,13 +838,13 @@ def generate_correction(failure_signature: str) -> str:
     return corrections.get(failure_signature, "try different factor combination")
 ```
 
-- [ ] **Step 3: Run tests**
+- [x] **Step 3: Run tests**
 
 ```bash
 uv run pytest plugins/vertical-plugins/simulation/skills/evolution-loop/ -v
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add plugins/vertical-plugins/simulation/skills/evolution-loop/
@@ -889,7 +853,7 @@ git commit -m "feat: add evolution-loop skill with doom loop detection"
 
 ### Task 2.5: Integration Test - Full Simulation Run
 
-- [ ] **Step 1: Write integration test**
+- [x] **Step 1: Write integration test**
 
 ```python
 # test_simulation_integration.py
@@ -913,13 +877,13 @@ class TestSimulationIntegration:
         assert result[0].executed_volume == 1000
 ```
 
-- [ ] **Step 2: Run integration test**
+- [x] **Step 2: Run integration test**
 
 ```bash
 uv run pytest -m integration plugins/vertical-plugins/simulation/ -v
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add plugins/vertical-plugins/simulation/
