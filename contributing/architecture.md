@@ -368,6 +368,9 @@ Skills are grouped by domain vertical under `plugins/vertical-plugins/<vertical>
 | trading-simulator | ✓ `simulator.py`, `market_rules.py`, `run_simulation.py` | A-share trading sandbox (T+1, limits, costs) |
 | experiment-tracker | ✓ `track_experiment.py` | Experiment recording + lineage management |
 | evolution-loop | ✓ `evolution.py` | Iteration control, doom loop detection |
+| script-generator | ✓ `generate_factor_script.py`, `generate_strategy_script.py` | Generate Python factor/strategy scripts |
+| agent-modifier | ✓ `modify_agent.py` | Modify agent plugin.json + guardrails (self-mod blocked) |
+| mcp-tool-adder | ✓ `add_mcp_tool.py` | Add MCP tools to internal-store (R6 enforcement) |
 
 ### market-monitor
 
