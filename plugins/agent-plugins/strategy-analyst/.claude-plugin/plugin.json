@@ -1,0 +1,6 @@
+{
+  "name": "strategy-analyst",
+  "version": "0.1.0",
+  "description": "A-share strategy analysis agent. Performs factor research, strategy construction, and backtesting with A-share constraints.",
+  "author": { "name": "A-Share Quant" }
+}
