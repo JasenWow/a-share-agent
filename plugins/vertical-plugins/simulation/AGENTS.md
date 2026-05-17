@@ -1,6 +1,6 @@
 # Simulation Plugin
 
-**Scope:** Trading simulation — simulator, experiment tracking, evolution loop.
+**Scope:** Trading simulation — simulator, experiment tracking, evolution loop, script generation, agent modification.
 
 ## Structure
 
@@ -9,10 +9,14 @@ plugins/vertical-plugins/simulation/
 ├── .claude-plugin/
 │   └── plugin.json         # Plugin metadata + skill list
 ├── .mcp.json               # MCP server config
-├── skills/                  # Skills (Phase 2+)
-│   ├── trading-simulator/
-│   ├── experiment-tracker/
-│   └── evolution-loop/
+├── skills/                  # Skills
+│   ├── trading-simulator/   # A-share trading sandbox
+│   ├── experiment-tracker/  # Experiment recording via internal-store
+│   ├── evolution-loop/      # Iteration control, doom loop, hypothesis generation
+│   ├── script-generator/    # Auto-generate factor/strategy Python scripts
+│   ├── agent-modifier/      # Modify agent definitions (Phase 3)
+│   ├── mcp-tool-adder/      # Add MCP tools to internal-store (Phase 3)
+│   └── next-day-predict/    # Next-day prediction skill
 └── commands/               # Slash commands
 ```
 
@@ -20,9 +24,13 @@ plugins/vertical-plugins/simulation/
 
 | Skill | Purpose |
 |-------|---------|
-| `trading-simulator` | A-share trading sandbox |
-| `experiment-tracker` | Experiment recording |
-| `evolution-loop` | Iteration control and doom loop detection |
+| `trading-simulator` | A-share trading sandbox with T+1, price limits, costs |
+| `experiment-tracker` | Experiment recording and history |
+| `evolution-loop` | Iteration control, doom loop detection, hypothesis generation |
+| `script-generator` | Generate and validate factor/strategy Python scripts |
+| `agent-modifier` | Modify agent plugin definitions (self-mod prevention) |
+| `mcp-tool-adder` | Add new MCP tools to internal-store (R6 enforced) |
+| `next-day-predict` | Next-day prediction skill |
 
 ## ANTI-PATTERNS
 
