@@ -175,6 +175,65 @@ class TestRecordEpisodeSummary:
             assert len(rows) == 2
 
 
+class TestGetSimilarStates:
+    def test_finds_matching_states(self, temp_db):
+        with patch("server.DB_PATH", temp_db):
+            from server import record_experiment, get_similar_states
+
+            record_experiment("exp1", {"type": "momentum"}, {"market_regime": "bull", "volatility": 0.2}, {"final_nav": 1.1})
+            record_experiment("exp2", {"type": "value"}, {"market_regime": "bull", "volatility": 0.25}, {"final_nav": 1.05})
+            record_experiment("exp3", {"type": "momentum"}, {"market_regime": "bear", "volatility": 0.4}, {"final_nav": 0.9})
+            results = get_similar_states({"market_regime": "bull", "volatility": 0.2}, top_k=5)
+            # Both exp1 and exp2 share market_regime=bull; exp1 also shares volatility
+            assert len(results) >= 2
+            assert results[0]["name"] == "exp1"
+
+    def test_returns_empty_when_no_match(self, temp_db):
+        with patch("server.DB_PATH", temp_db):
+            from server import get_similar_states
+
+            results = get_similar_states({"market_regime": "range"}, top_k=5)
+            assert results == []
+
+    def test_respects_top_k(self, temp_db):
+        with patch("server.DB_PATH", temp_db):
+            from server import record_experiment, get_similar_states
+
+            for i in range(10):
+                record_experiment(f"exp_{i}", {"type": "a"}, {"market_regime": "bull"}, {"final_nav": 1.0 + i * 0.01})
+            results = get_similar_states({"market_regime": "bull"}, top_k=3)
+            assert len(results) == 3
+
+
+class TestGetFailures:
+    def test_get_failures_returns_negative_returns(self, temp_db):
+        with patch("server.DB_PATH", temp_db):
+            from server import record_experiment, get_failures
+
+            record_experiment("good_exp", {"type": "a"}, {}, {"final_nav": 1.3})
+            record_experiment("bad_exp", {"type": "b"}, {}, {"final_nav": 0.85})
+            record_experiment("ok_exp", {"type": "c"}, {}, {"final_nav": 1.0})
+            failures = get_failures()
+            assert len(failures) == 1
+            assert failures[0]["name"] == "bad_exp"
+
+    def test_get_failures_with_limit(self, temp_db):
+        with patch("server.DB_PATH", temp_db):
+            from server import record_experiment, get_failures
+
+            for i in range(5):
+                record_experiment(f"bad_{i}", {"type": "b"}, {}, {"final_nav": 0.8})
+            failures = get_failures(limit=3)
+            assert len(failures) == 3
+
+    def test_get_failures_empty(self, temp_db):
+        with patch("server.DB_PATH", temp_db):
+            from server import get_failures
+
+            failures = get_failures()
+            assert failures == []
+
+
 class TestNoTemplateArtifacts:
     def test_no_list_cache_function_exists(self):
         """Verify no broken list_cache function exists in the server module."""
@@ -183,3 +242,30 @@ class TestNoTemplateArtifacts:
         import inspect
         source = inspect.getsource(server)
         assert "def list_cache" not in source, "list_cache function should be removed"
+
+
+class TestGetTransitionMatrix:
+    def test_aggregates_transitions_by_strategy(self, temp_db):
+        with patch("server.DB_PATH", temp_db):
+            from server import record_experiment, record_transition, get_transition_matrix
+            import json as json_mod
+
+            record_experiment("exp1", {"type": "momentum"}, {"market_regime": "bull"}, {"final_nav": 1.1})
+            state = {"market_regime": "bull"}
+            strategy_a = {"factors": ["momentum_20d"], "action": "buy"}
+            strategy_b = {"factors": ["value_pe"], "action": "sell"}
+            record_transition(1, state, strategy_a, {"pnl": 100}, {"market_regime": "bull"})
+            record_transition(1, state, strategy_a, {"pnl": 200}, {"market_regime": "bull"})
+            record_transition(1, state, strategy_b, {"pnl": -50}, {"market_regime": "bull"})
+            matrix = get_transition_matrix(state)
+            a_key = json_mod.dumps(strategy_a, sort_keys=True)
+            assert a_key in matrix
+            assert matrix[a_key]["count"] == 2
+            assert matrix[a_key]["avg_reward"] == 150.0
+
+    def test_empty_when_no_transitions(self, temp_db):
+        with patch("server.DB_PATH", temp_db):
+            from server import get_transition_matrix
+
+            matrix = get_transition_matrix({"market_regime": "bear"})
+            assert matrix == {}

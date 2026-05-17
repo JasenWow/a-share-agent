@@ -307,6 +307,104 @@ def list_episode_summaries() -> list[dict]:
 
 
 
+@mcp.tool()
+def get_similar_states(state_vector: dict, top_k: int = 5) -> list[dict]:
+    """
+    Find experiments with historically similar state parameters.
+
+    Similarity is measured by counting overlapping key-value pairs between
+    the provided state_vector and each experiment's params JSON field.
+
+    Args:
+        state_vector: Dict of state fields to match against experiment params.
+        top_k:        Number of top matches to return.
+    """
+    try:
+        conn = sqlite3.connect(str(DB_PATH))
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute("SELECT * FROM experiments ORDER BY created_at DESC").fetchall()
+        conn.close()
+
+        scored = []
+        for row in rows:
+            params = json.loads(row["params"]) if row["params"] else {}
+            overlap = sum(1 for k, v in state_vector.items() if params.get(k) == v)
+            if overlap > 0:
+                scored.append((overlap, dict(row)))
+
+        scored.sort(key=lambda x: x[0], reverse=True)
+        return [item[1] for item in scored[:top_k]]
+    except Exception as e:
+        return [{"error": str(e), "tool": "get_similar_states"}]
+
+
+@mcp.tool()
+def get_transition_matrix(state_vector: dict) -> dict:
+    """
+    Aggregate transitions matching a state vector, grouped by strategy.
+
+    Returns a dict mapping strategy JSON to {avg_reward, count} for strategy
+    selection based on historical performance from similar states.
+
+    Args:
+        state_vector: Dict of state fields to match against transition state JSON.
+    """
+    try:
+        conn = sqlite3.connect(str(DB_PATH))
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute("SELECT * FROM transitions").fetchall()
+        conn.close()
+
+        aggregated = {}
+        for row in rows:
+            t_state = json.loads(row["state"]) if row["state"] else {}
+            overlap = sum(1 for k, v in state_vector.items() if t_state.get(k) == v)
+            if overlap == 0:
+                continue
+
+            strategy_key = row["strategy"]
+            reward_data = json.loads(row["reward"]) if row["reward"] else {}
+            reward_val = reward_data.get("pnl", 0)
+
+            if strategy_key not in aggregated:
+                aggregated[strategy_key] = {"total_reward": 0.0, "count": 0}
+            aggregated[strategy_key]["total_reward"] += reward_val
+            aggregated[strategy_key]["count"] += 1
+
+        return {
+            k: {"avg_reward": v["total_reward"] / v["count"], "count": v["count"]}
+            for k, v in aggregated.items()
+        }
+    except Exception as e:
+        return {"error": str(e), "tool": "get_transition_matrix"}
+
+
+@mcp.tool()
+def get_failures(experiment_id: int | None = None, limit: int = 20) -> list[dict]:
+    """
+    Retrieve experiments with negative returns (final_nav < 1.0).
+
+    Args:
+        experiment_id: Optional filter by specific experiment ID.
+        limit:         Maximum number of failures to return.
+    """
+    try:
+        conn = sqlite3.connect(str(DB_PATH))
+        conn.row_factory = sqlite3.Row
+        query = "SELECT * FROM experiments WHERE CAST(json_extract(result, '$.final_nav') AS REAL) < 1.0"
+        params: list = []
+        if experiment_id is not None:
+            query += " AND id = ?"
+            params.append(experiment_id)
+        query += " ORDER BY created_at DESC LIMIT ?"
+        params.append(limit)
+        rows = conn.execute(query, params).fetchall()
+        conn.close()
+        return [dict(r) for r in rows]
+    except Exception as e:
+        return [{"error": str(e), "tool": "get_failures"}]
+
+
 # --- ASGI App ---
 mcp_app = mcp.streamable_http_app()
 
