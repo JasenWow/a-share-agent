@@ -1,6 +1,0 @@
-=== T3 QA PASS - agent.md has required sections ===
-## What you produce: OK
-## Workflow: OK
-## Guardrails: OK
-look-ahead bias: OK
-=== PASS ===

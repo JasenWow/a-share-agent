@@ -1,6 +1,0 @@
-=== T2 QA PASS - agent.md has required sections ===
-## What you produce: OK
-## Workflow: OK
-## Guardrails: OK
-frontmatter: OK
-=== PASS ===

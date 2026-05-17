@@ -1,9 +1,0 @@
-=== T7 QA FAILURE DETECTED ===
-5 old agents deleted (stock-screener, factor-analyst, backtester, daily-predictor, northbound-monitor):
-stock-screener: deleted OK
-factor-analyst: deleted OK
-backtester: deleted OK
-daily-predictor: FAIL - still exists (empty dir remains)
-northbound-monitor: deleted OK
-3 kept agents (equity-researcher, portfolio-manager, market-monitor): intact OK
-=== FAIL ===

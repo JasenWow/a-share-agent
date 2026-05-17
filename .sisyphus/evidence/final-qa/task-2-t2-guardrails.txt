@@ -1,3 +1,0 @@
-=== T2 QA PASS - A-share constraints present ===
-T+1: OK, transaction cost: OK
-=== PASS ===

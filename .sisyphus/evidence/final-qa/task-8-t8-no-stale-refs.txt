@@ -1,3 +1,0 @@
-=== T8 QA PASS - No stale a-share-analysis references ===
-No stale a-share-analysis references found in docs
-=== PASS ===

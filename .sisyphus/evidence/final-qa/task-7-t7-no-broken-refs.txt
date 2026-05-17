@@ -1,3 +1,0 @@
-=== T7 QA PASS - No broken references ===
-No broken references to deleted agents found
-=== PASS ===

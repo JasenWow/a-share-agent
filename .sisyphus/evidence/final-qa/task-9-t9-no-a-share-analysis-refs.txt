@@ -1,3 +1,0 @@
-=== T9 QA PASS - No references to a-share-analysis ===
-No references found in plugins/ or scripts/
-=== PASS ===

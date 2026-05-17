@@ -1,4 +1,0 @@
-=== T4 QA PASS - scripts import without errors ===
-check.py: imports OK
-validate.py: imports OK
-=== PASS ===

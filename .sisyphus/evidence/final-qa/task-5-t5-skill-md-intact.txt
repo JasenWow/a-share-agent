@@ -1,4 +1,0 @@
-=== T5 QA PASS - SKILL.md and scripts intact ===
-market-data skills: factor-screen, factor-research, portfolio-optimize all have SKILL.md
-backtest-engine: SKILL.md OK, engine.py OK
-=== PASS ===

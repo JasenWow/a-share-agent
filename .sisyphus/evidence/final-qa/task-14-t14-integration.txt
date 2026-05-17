@@ -1,5 +1,0 @@
-=== T14 QA RESULTS ===
-Scenario 1 (multi_day): ModuleNotFoundError when run individually
-Scenario 2 (all integration): Same import error
-Scenario 3 (full suite): 61 PASSED - ALL PASS
-=== PASS (when run as part of suite) ===

@@ -1,5 +1,0 @@
-=== Cross-Task Integration Summary ===
-Full simulation + internal-store test suite: 69 PASSED
-Trading simulator integration tests (test_simulation_integration.py): ALL PASS
-T+1 settlement working via pytest (not direct import)
-=== PASS ===

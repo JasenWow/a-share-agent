@@ -1,3 +1,0 @@
-=== T9 QA FAILURE ===
-a-share-analysis: FAIL - still exists
-=== FAIL ===

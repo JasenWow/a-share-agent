@@ -1,7 +1,0 @@
-=== T8 QA PASS - Docs list correct 5 verticals ===
-market-data: 2 references
-equity-research: 4 references
-trading-strategy: 2 references
-simulation: 6 references
-market-monitor: 4 references
-=== PASS ===

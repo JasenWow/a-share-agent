@@ -1,2 +1,0 @@
-=== T1 QA PASS (all 5 verticals have plugin.json, skills/, commands/) ===
-=== PASS ===
