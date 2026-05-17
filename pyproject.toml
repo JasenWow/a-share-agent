@@ -16,6 +16,8 @@ dependencies = [
     "plotly>=5.18",
     "ipython>=8.0",
     "ipywidgets>=8.0",
+    "jupyterlab>=4.0",
+    "nbconvert>=7.0",
 ]
 
 [dependency-groups]

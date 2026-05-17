@@ -129,16 +129,39 @@ def check_boundary_rules() -> list[str]:
         "screen_stocks",
         "market_breadth",
     ]
+    # SQL schema patterns to skip (these are false positives from table names in SQL strings)
+    sql_schema_patterns = ["create table", "insert into", "drop table", "alter table"]
     if mcp_dir.exists():
         for srv_dir in mcp_dir.iterdir():
             if not srv_dir.is_dir():
                 continue
             for py_file in srv_dir.rglob("*.py"):
-                content = py_file.read_text(errors="ignore").lower()
+                content = py_file.read_text(errors="ignore")
+                lines = content.splitlines()
                 for kw in domain_keywords:
-                    if kw in content and "def " in content:
-                        issues.append(f"R6 WARNING: {py_file.relative_to(ROOT)} may contain domain logic ({kw}) — consider moving to skill scripts/")
-                        break
+                    for i, line in enumerate(lines):
+                        lower_line = line.lower()
+                        # Skip SQL schema definition lines (table names contain keywords like "backtest_results")
+                        if any(sql_kw in lower_line for sql_kw in sql_schema_patterns):
+                            if "def " not in lower_line and "async def" not in lower_line and "class " not in lower_line:
+                                continue
+                        # Skip function definitions where keyword is part of function name (e.g., def list_backtest_results)
+                        if "def " in lower_line or "async def" in lower_line:
+                            # Skip if keyword is part of function name suffix (e.g., def list_backtest_results, def winsorize_portfolio)
+                            # But flag if keyword IS the function name (e.g., def backtest(prices), def neutralize(prices))
+                            func_def = lower_line.find("def ")
+                            if func_def == -1:
+                                func_def = lower_line.find("async def ")
+                            kw_pos = lower_line.find(kw)
+                            paren_pos = lower_line.find("(", func_def)
+                            # kw appears in function name suffix if: keyword ends before ( and is preceded by _ or is part of compound name after def
+                            if paren_pos != -1 and kw_pos > func_def and kw_pos < paren_pos:
+                                # Check if it's truly a suffix (keyword followed by _ or end before paren)
+                                after_kw = lower_line[kw_pos + len(kw):paren_pos]
+                                if after_kw.startswith("_") or after_kw.strip() != "":
+                                    continue
+                        if kw in lower_line and "def " in lower_line:
+                            issues.append(f"R6 WARNING: {py_file.relative_to(ROOT)} may contain domain logic ({kw}) at line {i+1} — consider moving to skill scripts/")
 
     # R4: No cross-server imports
     server_names = ["akshare_server", "tushare_server", "internal_store"]

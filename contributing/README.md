@@ -45,6 +45,7 @@ uv run uvicorn mcp-servers.internal-store.server:mcp_app --host 0.0.0.0 --port 8
 | `mcp-servers.md` | FastMCP patterns, tool definition, caching strategy, adding new tools and servers |
 | `playbooks.md` | Step-by-step checklists — adding a new skill, agent, MCP tool, slash command, or simulation component |
 | `a-share-rules.md` | A-share market rules reference: T+1, price limits, costs, exclusion rules, Shenwan classification |
+| `notebooks.md` | Jupyter notebook conventions: MCP tool access, kernel setup, CI execution via nbconvert |
 
 ## Quick Architecture Reference
 
