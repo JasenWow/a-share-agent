@@ -307,21 +307,6 @@ def list_episode_summaries() -> list[dict]:
 
 
 
-@mcp.tool()
-def list_cache(limit: int) -> list[dict]:
-    """
-    List cache
-
-    Args:
-        limit: Description.    """
-    try:
-        df = ak.new_function()
-        return df_to_json(df)
-    except Exception as e:
-        return [{"error": str(e), "tool": "list_cache"}]
-
-
-
 # --- ASGI App ---
 mcp_app = mcp.streamable_http_app()
 

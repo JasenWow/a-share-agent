@@ -173,3 +173,13 @@ class TestRecordEpisodeSummary:
             record_episode_summary("2024Q2", 1100000, 1150000, 1.8, 0.12)
             rows = list_episode_summaries()
             assert len(rows) == 2
+
+
+class TestNoTemplateArtifacts:
+    def test_no_list_cache_function_exists(self):
+        """Verify no broken list_cache function exists in the server module."""
+        import server
+        # The server module should not have any reference to ak.new_function or df_to_json in list_cache
+        import inspect
+        source = inspect.getsource(server)
+        assert "def list_cache" not in source, "list_cache function should be removed"
