@@ -24,7 +24,9 @@ a-share-agents/
 │   │   ├── factor-analyst/           # Factor research agent
 │   │   ├── backtester/               # Strategy backtesting agent
 │   │   ├── portfolio-manager/        # Portfolio management agent
-│   │   └── market-monitor/           # Market monitoring agent
+│   │   ├── market-monitor/           # Market monitoring agent
+│   │   ├── daily-predictor/          # Next-day prediction agent
+│   │   └── northbound-monitor/       # Northbound capital flow agent
 │   └── vertical-plugins/             # Domain skill packages
 │       └── a-share-analysis/         # A-share analysis skill pack
 │           ├── skills/               # Skill definitions (SKILL.md + prompt.md)
@@ -123,6 +125,8 @@ Two data access patterns exist:
 | backtester | `agent-plugins/backtester/` | `/backtest` | Strategy backtesting with T+1, price limits, transaction costs |
 | portfolio-manager | `agent-plugins/portfolio-manager/` | `/optimize` | Portfolio optimization (MVO, HRP, Risk Parity), risk monitoring |
 | market-monitor | `agent-plugins/market-monitor/` | `/market` | Market breadth, northbound flow, dragon-tiger, regime detection |
+| daily-predictor | `agent-plugins/daily-predictor/` | `/predict` | Next-day stock prediction with alpha factors |
+| northbound-monitor | `agent-plugins/northbound-monitor/` | — | Northbound capital flow monitoring and analysis |
 
 ## Skill Catalog
 
@@ -136,6 +140,8 @@ Skills are grouped by domain under `plugins/vertical-plugins/a-share-analysis/sk
 | backtest-engine | `skills/backtest-engine/` | backtester |
 | portfolio-optimize | `skills/portfolio-optimize/` | portfolio-manager |
 | market-breadth | `skills/market-breadth/` | market-monitor |
+| next-day-predict | `skills/next-day-predict/` | daily-predictor |
+| northbound-monitor | `skills/northbound-monitor/` | northbound-monitor |
 | xlsx-author | `skills/xlsx-author/` | all agents (shared utility) |
 
 ## Connector Catalog

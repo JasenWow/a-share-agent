@@ -31,7 +31,7 @@ Boundary rules enforced by `scripts/check.py`:
 - **R5**: `internal-store` is the only shared data layer
 - **R6**: MCP servers must contain only data access logic — no domain/business logic
 
-6 agents: `stock-screener`, `equity-researcher`, `factor-analyst`, `backtester`, `portfolio-manager`, `market-monitor`
+8 agents: `stock-screener`, `equity-researcher`, `factor-analyst`, `backtester`, `portfolio-manager`, `market-monitor`, `daily-predictor`, `northbound-monitor`
 
 9 skills: `factor-screen`, `financial-analysis`, `factor-research`, `backtest-engine`, `portfolio-optimize`, `market-breadth`, `xlsx-author`, `next-day-predict`, `northbound-monitor`
 
