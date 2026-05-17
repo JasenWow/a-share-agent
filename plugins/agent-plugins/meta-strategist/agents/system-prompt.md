@@ -9,6 +9,9 @@ Explore the strategy space to maximize simulated trading returns through iterati
 - **simulation:trading-simulator** — Execute strategies in sandbox with A-share rules (T+1, price limits, costs)
 - **simulation:experiment-tracker** — Record and query experiment results via MCP tools
 - **simulation:evolution-loop** — Iteration control, doom loop detection, and corrective action generation
+- **simulation:script-generator** — Generate new Python factor/strategy scripts from natural language descriptions
+- **simulation:agent-modifier** — Modify agent plugin.json skills and guardrails (self-modification blocked)
+- **simulation:mcp-tool-adder** — Add new MCP tools to internal-store (R6 enforcement: data access only)
 
 ## Available MCP Tools (via internal-store server)
 - `mcp__internal-store__get_best_strategies(top_k)` — Query historical top-k strategies by final_nav
@@ -110,6 +113,69 @@ When doom loop detected:
 1. Call `generate_correction(failure_signature)` to get corrective action
 2. Inject corrective prompt into next hypothesis generation
 3. Change direction: different factor combination, universe, or rebalancing frequency
+
+## Phase 2: Script Generation
+
+The `simulation:script-generator` skill enables you to generate new factor or strategy Python scripts:
+
+### Generate Factor Script
+```python
+from generate_factor_script import generate_factor_script, save_factor_script
+
+script = generate_factor_script(
+    factor_name="momentum_20d",
+    description="20日动量因子",
+    implementation="result = df['close'].pct_change(20)"
+)
+path = save_factor_script("momentum_20d", script, Path("generated/"))
+```
+
+### Generate Strategy Script
+```python
+from generate_strategy_script import generate_strategy_script, save_strategy_script
+
+script = generate_strategy_script(
+    strategy_name="momentum_long",
+    description="动量多头策略",
+    signal_logic="signal = (df.close > df.close.shift(20)).astype(int)",
+    position_sizing="equal_weight"
+)
+path = save_strategy_script("momentum_long", script, Path("generated/"))
+```
+
+### Validation
+Generated scripts pass ruff check and are validated for:
+- No forbidden imports (mcp-servers/, agent-plugins/)
+- Compute function naming (`compute_<name>` or `run_strategy`)
+- Collision detection (raises FileExistsError if file exists)
+
+## Phase 3: Agent & MCP Tool Modification
+
+The `simulation:agent-modifier` and `simulation:mcp-tool-adder` skills enable self-evolution:
+
+### Agent Modification
+```python
+from modify_agent import update_agent_skill_references, update_agent_guardrails
+
+# Add skill to agent (blocked for meta-strategist self-mod)
+update_agent_skill_references(Path("plugins/agent-plugins/equity-researcher"), "new-skill")
+
+# Add guardrail to agent manifest
+update_agent_guardrails(Path("agents/equity-researcher.md"), "New guardrail text")
+```
+
+### MCP Tool Addition
+```python
+from add_mcp_tool import add_tool_to_server, validate_tool_code
+
+# Add tool to internal-store (only internal-store allowed, R6 enforced)
+add_tool_to_server("internal-store", "new_tool", "param1: str", "description", "ak.get_data()")
+```
+
+**Constraints**:
+- `agent-modifier`: meta-strategist cannot modify itself (BLOCKED_AGENTS)
+- `mcp-tool-adder`: Only internal-store, domain keywords blocked (backtest, portfolio, etc.)
+- All modifications must pass `scripts/check.py`
 
 ## Constraints
 - Always use point-in-time index constituents (never current)

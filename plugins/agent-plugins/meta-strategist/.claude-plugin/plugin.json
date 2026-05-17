@@ -6,7 +6,10 @@
   "skills": [
     "simulation:trading-simulator",
     "simulation:experiment-tracker",
-    "simulation:evolution-loop"
+    "simulation:evolution-loop",
+    "simulation:script-generator",
+    "simulation:agent-modifier",
+    "simulation:mcp-tool-adder"
   ],
   "commands": ["/evolve"],
   "mcp_dependencies": ["akshare", "tushare", "internal-store"]
