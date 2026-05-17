@@ -93,6 +93,25 @@ def _init_db():
             state_snapshot  TEXT,
             created_at      TEXT DEFAULT (datetime('now'))
         );
+        CREATE TABLE IF NOT EXISTS factor_library (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            name          TEXT NOT NULL,
+            expression    TEXT NOT NULL,
+            hypothesis    TEXT,
+            operators     TEXT NOT NULL,
+            data_fields   TEXT NOT NULL,
+            ic            REAL,
+            icir          REAL,
+            turnover      REAL,
+            sharpe        REAL,
+            max_drawdown  REAL,
+            universe      TEXT,
+            period        TEXT,
+            walk_forward  TEXT,
+            status        TEXT DEFAULT 'active',
+            source_experiment_id INTEGER,
+            created_at    TEXT DEFAULT (datetime('now'))
+        );
     """
     )
     conn.commit()
@@ -504,6 +523,143 @@ def get_failures(experiment_id: int | None = None, limit: int = 20) -> list[dict
         return [dict(r) for r in rows]
     except Exception as e:
         return [{"error": str(e), "tool": "get_failures"}]
+
+
+@mcp.tool()
+def register_factor(
+    name: str,
+    expression: str,
+    operators: list[str],
+    data_fields: list[str],
+    hypothesis: str = "",
+    ic: float | None = None,
+    icir: float | None = None,
+    turnover: float | None = None,
+    sharpe: float | None = None,
+    max_drawdown: float | None = None,
+    universe: str = "",
+    period: str = "",
+    walk_forward: dict | None = None,
+    source_experiment_id: int | None = None,
+) -> list[dict]:
+    """
+    Register a validated factor to the factor library.
+    Auto-deduplicates by expression text.
+
+    Args:
+        name:             Human-readable factor name.
+        expression:       Qlib expression string.
+        operators:        List of operators used in the expression.
+        data_fields:      List of data fields used.
+        hypothesis:       LLM hypothesis that led to this factor.
+        ic:               Mean Rank IC.
+        icir:             ICIR (Mean IC / Std IC).
+        turnover:         Factor turnover ratio.
+        sharpe:           Sharpe ratio of factor-mimicking portfolio.
+        max_drawdown:     Max drawdown of factor-mimicking portfolio.
+        universe:         Stock universe used for validation.
+        period:           Validation period.
+        walk_forward:     Walk-forward validation results summary.
+        source_experiment_id: ID of the experiment that produced this factor.
+    """
+    try:
+        conn = sqlite3.connect(str(DB_PATH))
+        conn.row_factory = sqlite3.Row
+
+        existing = conn.execute(
+            "SELECT id FROM factor_library WHERE expression = ?",
+            (expression,),
+        ).fetchone()
+        if existing:
+            conn.close()
+            return [{"status": "duplicate", "id": existing["id"], "message": "Factor with same expression already exists"}]
+
+        conn.execute(
+            """INSERT INTO factor_library
+            (name, expression, hypothesis, operators, data_fields, ic, icir, turnover,
+             sharpe, max_drawdown, universe, period, walk_forward, status, source_experiment_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)""",
+            (
+                name,
+                expression,
+                hypothesis,
+                json.dumps(sorted(operators)),
+                json.dumps(sorted(data_fields)),
+                ic,
+                icir,
+                turnover,
+                sharpe,
+                max_drawdown,
+                universe,
+                period,
+                json.dumps(walk_forward) if walk_forward else None,
+                source_experiment_id,
+            ),
+        )
+        rows = conn.execute("SELECT * FROM factor_library ORDER BY id DESC LIMIT 1").fetchall()
+        conn.commit()
+        conn.close()
+        return [dict(r) for r in rows]
+    except Exception as e:
+        return [{"error": str(e), "tool": "register_factor"}]
+
+
+@mcp.tool()
+def list_factors(status: str = "active", universe: str = "") -> list[dict]:
+    """
+    Query the factor library with optional filters.
+
+    Args:
+        status:   Factor status filter. "active", "deprecated", "testing", or "all".
+        universe: Optional universe filter.
+    """
+    try:
+        conn = sqlite3.connect(str(DB_PATH))
+        conn.row_factory = sqlite3.Row
+        query = "SELECT * FROM factor_library"
+        conditions = []
+        params = []
+
+        if status != "all":
+            conditions.append("status = ?")
+            params.append(status)
+        if universe:
+            conditions.append("universe = ?")
+            params.append(universe)
+
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+        query += " ORDER BY icir DESC"
+
+        rows = conn.execute(query, params).fetchall()
+        conn.close()
+        return [dict(r) for r in rows]
+    except Exception as e:
+        return [{"error": str(e), "tool": "list_factors"}]
+
+
+@mcp.tool()
+def deprecate_factor(factor_id: int, reason: str = "") -> list[dict]:
+    """
+    Mark a factor as deprecated.
+
+    Args:
+        factor_id: ID of the factor to deprecate.
+        reason:    Reason for deprecation.
+    """
+    try:
+        conn = sqlite3.connect(str(DB_PATH))
+        conn.row_factory = sqlite3.Row
+        conn.execute(
+            "UPDATE factor_library SET status = 'deprecated' WHERE id = ?",
+            (factor_id,),
+        )
+        rows = conn.execute("SELECT * FROM factor_library WHERE id = ?", (factor_id,)).fetchall()
+        conn.commit()
+        conn.close()
+        return [dict(r) for r in rows]
+    except Exception as e:
+        return [{"error": str(e), "tool": "deprecate_factor"}]
 
 
 # --- ASGI App ---
