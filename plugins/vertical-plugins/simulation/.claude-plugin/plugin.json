@@ -1,0 +1,7 @@
+{
+  "name": "simulation",
+  "version": "0.1.0",
+  "description": "Trading simulation: simulator, experiments, evolution loop",
+  "skills": ["trading-simulator"],
+  "mcp_dependencies": ["akshare", "tushare", "internal-store"]
+}

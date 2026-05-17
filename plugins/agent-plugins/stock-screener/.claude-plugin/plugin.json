@@ -1,8 +1,0 @@
-{
-  "name": "stock-screener",
-  "version": "0.1.0",
-  "description": "A-share factor-based stock screening agent. Filters the full A-share universe by fundamental factors with A-share exclusion rules.",
-  "author": {
-    "name": "A-Share Quant"
-  }
-}

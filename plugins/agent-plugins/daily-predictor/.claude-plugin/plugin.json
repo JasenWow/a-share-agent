@@ -1,8 +1,0 @@
-{
-  "name": "daily-predictor",
-  "version": "0.1.0",
-  "description": "A-share next-day stock price return prediction agent with self-feedback closed loop.",
-  "author": {
-    "name": "A-Share Quant"
-  }
-}
