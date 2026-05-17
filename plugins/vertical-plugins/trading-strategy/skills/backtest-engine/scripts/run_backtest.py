@@ -1,7 +1,7 @@
 """CLI entry point for running backtests standalone.
 
 Usage:
-    uv run python plugins/vertical-plugins/a-share-analysis/skills/backtest-engine/scripts/run_backtest.py \
+    uv run python plugins/vertical-plugins/trading-strategy/skills/backtest-engine/scripts/run_backtest.py \
         --config config.json \
         --output results.json
 

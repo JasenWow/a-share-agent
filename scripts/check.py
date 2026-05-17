@@ -51,23 +51,25 @@ def check_plugin_structure() -> list[str]:
     """Check plugin directory structure."""
     issues = []
 
-    # Check vertical plugin
-    vp = ROOT / "plugins" / "vertical-plugins" / "a-share-analysis"
-    if not vp.exists():
-        issues.append(f"MISSING: {vp}")
-    else:
+    # Check vertical plugins (5 verticals: market-data, equity-research, trading-strategy, simulation, market-monitor)
+    verticals = ["market-data", "equity-research", "trading-strategy", "simulation", "market-monitor"]
+    verticals_dir = ROOT / "plugins" / "vertical-plugins"
+    for vp_name in verticals:
+        vp = verticals_dir / vp_name
+        if not vp.exists():
+            issues.append(f"MISSING: vertical plugin {vp}")
+            continue
         for required in [".claude-plugin", ".mcp.json", "skills", "commands"]:
             if not (vp / required).exists():
                 issues.append(f"MISSING: {vp / required}")
 
-    # Check agent plugins
+    # Check agent plugins (5 agents: equity-researcher, strategy-analyst, portfolio-manager, market-monitor, meta-strategist)
     agents = [
-        "stock-screener",
         "equity-researcher",
-        "factor-analyst",
-        "backtester",
+        "strategy-analyst",
         "portfolio-manager",
         "market-monitor",
+        "meta-strategist",
     ]
     ap = ROOT / "plugins" / "agent-plugins"
     for agent in agents:

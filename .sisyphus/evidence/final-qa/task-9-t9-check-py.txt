@@ -1,0 +1,28 @@
+=== T9 QA - check.py output ===
+A-Share Agents Environment Check
+==================================================
+
+[Python Packages]
+  OK
+
+[MCP Configuration]
+  OK
+
+[Plugin Structure]
+  OK
+
+[MCP Server Code]
+  OK
+
+[Boundary Rules]
+  - R6 WARNING: mcp-servers/internal-store/server.py may contain domain logic (backtest) — consider moving to skill scripts/
+  - R6 WARNING: mcp-servers/internal-store/test_server.py may contain domain logic (backtest) — consider moving to skill scripts/
+
+[Data Directory]
+  OK
+
+[Environment Variables]
+  - WARN: TUSHARE_TOKEN not set (optional for AKShare-only mode)
+
+==================================================
+Found 3 issue(s). Fix before proceeding.

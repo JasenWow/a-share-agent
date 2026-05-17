@@ -1,0 +1,8 @@
+=== T11 QA RESULTS ===
+Scenario 1 (new tables): ModuleNotFoundError - cannot import mcp_servers directly
+Scenario 2 (record_experiment): Test not found at specified path
+Scenario 3 (get_best_strategies): Test not found at specified path
+Scenario 4 (record_transition): Test not found at specified path
+Scenario 5 (all tests): 8 passed in test_server.py - ALL PASS
+Scenario 6 (schema.sql): experiments, transitions, episode_summaries all present - PASS
+=== PARTIAL PASS (test naming mismatch) ===

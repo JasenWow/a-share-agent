@@ -1,0 +1,8 @@
+=== T10 QA RESULTS ===
+test_t1_settlement_blocks_same_day_sell: Not found (test name mismatch)
+test_board_price_limits: Not found (test name mismatch)
+test_lot_size_rounding: Not found (test name mismatch)
+cost tests: 4 passed
+ALL 30 TESTS PASSED
+SKILL.md: MISSING Workflow and Guardrails
+=== PARTIAL PASS ===

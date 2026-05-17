@@ -1,0 +1,4 @@
+=== T7 QA PASS - Cookbooks deleted correctly ===
+3 old cookbooks deleted: stock-screener, factor-analyst, backtester
+3 kept cookbooks intact: equity-researcher, portfolio-manager, market-monitor
+=== PASS ===

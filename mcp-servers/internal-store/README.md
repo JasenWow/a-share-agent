@@ -9,6 +9,12 @@ Local data store for caching, backtest results, and portfolio state persistence.
 | `query_cache` | Query local cache data | source, tool_name, params |
 | `list_backtest_results` | List all backtest results | limit |
 | `get_portfolio` | Get current portfolio state | name |
+| `record_experiment` | Record an experiment run | name, strategy, params, result |
+| `list_experiments` | List all recorded experiments | — |
+| `get_best_strategies` | Get top-k strategies by final_nav | top_k |
+| `record_transition` | Record a state transition | experiment_id, state, strategy, reward, next_state |
+| `record_episode_summary` | Record an episode summary | period, initial_capital, final_nav, sharpe, max_drawdown |
+| `list_episode_summaries` | List all episode summaries | — |
 
 ## Running
 

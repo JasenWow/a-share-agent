@@ -1,0 +1,7 @@
+{
+  "name": "market-monitor",
+  "version": "0.1.0",
+  "description": "Market monitoring: breadth, northbound flow, next-day prediction",
+  "skills": ["market-breadth", "next-day-predict", "northbound-monitor"],
+  "mcp_dependencies": ["akshare", "tushare", "internal-store"]
+}

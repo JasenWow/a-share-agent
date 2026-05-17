@@ -1,0 +1,3 @@
+=== T2 QA PASS - strategy-analyst exists ===
+plugin.json OK, agent.md OK
+=== PASS ===

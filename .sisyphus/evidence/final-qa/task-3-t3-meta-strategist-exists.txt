@@ -1,0 +1,3 @@
+=== T3 QA PASS - meta-strategist files exist ===
+plugin.json OK, agent.md OK, system-prompt OK
+=== PASS ===

@@ -1,0 +1,7 @@
+=== T5 QA PASS - All 9 skills in correct verticals ===
+market-data: factor-screen, factor-research, portfolio-optimize
+equity-research: financial-analysis
+trading-strategy: backtest-engine, xlsx-author
+market-monitor: market-breadth, northbound-monitor
+simulation: next-day-predict
+=== PASS ===

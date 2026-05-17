@@ -1,0 +1,7 @@
+=== T8 QA PASS - Docs list correct 5 agents ===
+meta-strategist: 8 references
+strategy-analyst: 2 references
+equity-researcher: 2 references
+portfolio-manager: 2 references
+market-monitor: 4 references
+=== PASS ===

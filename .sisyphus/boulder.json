@@ -1,0 +1,32 @@
+{
+  "active_plan": "/Volumes/data/documents/codes/a-share-agents/.sisyphus/plans/phase1-2-restructure-simulator.md",
+  "started_at": "2026-05-17T04:53:08.857Z",
+  "session_ids": [
+    "ses_1cbc4d63dffe6C7D9ixKz0IUtX"
+  ],
+  "session_origins": {
+    "ses_1cbc4d63dffe6C7D9ixKz0IUtX": "direct"
+  },
+  "plan_name": "phase1-2-restructure-simulator",
+  "agent": "atlas",
+  "task_sessions": {
+    "todo:2": {
+      "task_key": "todo:2",
+      "task_label": "2",
+      "task_title": "Create Strategy-Analyst Agent Plugin",
+      "session_id": "ses_1cbb4e5d9ffert0V9pPEiyQwiz",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-05-17T04:57:09.943Z"
+    },
+    "todo:4": {
+      "task_key": "todo:4",
+      "task_label": "4",
+      "task_title": "Update check.py and validate.py for New Structure",
+      "session_id": "ses_1cbb36467ffeHZTG8GqV7yBYKi",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-05-17T04:59:13.080Z"
+    }
+  }
+}

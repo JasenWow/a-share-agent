@@ -1,6 +1,6 @@
 name: equity-researcher
 description: Deep-dive A-share equity research agent
 skills:
-  - path: ../../plugins/vertical-plugins/a-share-analysis/skills/financial-analysis
-  - path: ../../plugins/vertical-plugins/a-share-analysis/skills/xlsx-author
+  - path: ../../plugins/vertical-plugins/equity-research/skills/financial-analysis
+  - path: ../../plugins/vertical-plugins/trading-strategy/skills/xlsx-author
 system_prompt: ../../plugins/agent-plugins/equity-researcher/agents/equity-researcher.md

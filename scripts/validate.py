@@ -88,15 +88,22 @@ def main():
 
     all_issues = []
 
-    # Validate vertical plugin
-    vp_dir = ROOT / "plugins" / "vertical-plugins" / "a-share-analysis"
-    print(f"\n[Vertical Plugin: a-share-analysis]")
-    issues = validate_vertical_plugin(vp_dir)
-    all_issues.extend(issues)
-    for issue in issues:
-        print(f"  - {issue}")
-    if not issues:
-        print("  OK")
+    # Validate vertical plugins (5 verticals: market-data, equity-research, trading-strategy, simulation, market-monitor)
+    verticals_dir = ROOT / "plugins" / "vertical-plugins"
+    if verticals_dir.exists():
+        for vp in sorted(verticals_dir.iterdir()):
+            if not vp.is_dir():
+                continue
+            plugin_json = vp / ".claude-plugin" / "plugin.json"
+            if not plugin_json.exists():
+                continue
+            print(f"\n[Vertical Plugin: {vp.name}]")
+            issues = validate_vertical_plugin(vp)
+            all_issues.extend(issues)
+            for issue in issues:
+                print(f"  - {issue}")
+            if not issues:
+                print("  OK")
 
     # Validate agent plugins
     ap_dir = ROOT / "plugins" / "agent-plugins"

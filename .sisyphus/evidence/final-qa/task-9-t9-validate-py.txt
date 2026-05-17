@@ -1,0 +1,46 @@
+=== T9 QA - validate.py output ===
+A-Share Agents Validation
+==================================================
+
+[Vertical Plugin: equity-research]
+  OK
+
+[Vertical Plugin: market-data]
+  - MISSING section '## Guardrails' in /Volumes/data/documents/codes/a-share-agents/plugins/vertical-plugins/market-data/skills/factor-research/SKILL.md
+  - MISSING section '## Guardrails' in /Volumes/data/documents/codes/a-share-agents/plugins/vertical-plugins/market-data/skills/factor-screen/SKILL.md
+  - MISSING section '## Guardrails' in /Volumes/data/documents/codes/a-share-agents/plugins/vertical-plugins/market-data/skills/portfolio-optimize/SKILL.md
+
+[Vertical Plugin: market-monitor]
+  - MISSING section '## Guardrails' in /Volumes/data/documents/codes/a-share-agents/plugins/vertical-plugins/market-monitor/skills/market-breadth/SKILL.md
+
+[Vertical Plugin: simulation]
+  - MISSING section '## Workflow' in /Volumes/data/documents/codes/a-share-agents/plugins/vertical-plugins/simulation/skills/evolution-loop/SKILL.md
+  - MISSING section '## Guardrails' in /Volumes/data/documents/codes/a-share-agents/plugins/vertical-plugins/simulation/skills/evolution-loop/SKILL.md
+  - MISSING section '## Workflow' in /Volumes/data/documents/codes/a-share-agents/plugins/vertical-plugins/simulation/skills/trading-simulator/SKILL.md
+  - MISSING section '## Guardrails' in /Volumes/data/documents/codes/a-share-agents/plugins/vertical-plugins/simulation/skills/trading-simulator/SKILL.md
+
+[Vertical Plugin: trading-strategy]
+  - MISSING section '## Guardrails' in /Volumes/data/documents/codes/a-share-agents/plugins/vertical-plugins/trading-strategy/skills/backtest-engine/SKILL.md
+  - MISSING section '## Workflow' in /Volumes/data/documents/codes/a-share-agents/plugins/vertical-plugins/trading-strategy/skills/xlsx-author/SKILL.md
+  - MISSING section '## Guardrails' in /Volumes/data/documents/codes/a-share-agents/plugins/vertical-plugins/trading-strategy/skills/xlsx-author/SKILL.md
+
+[Agent: daily-predictor]
+  - MISSING: /Volumes/data/documents/codes/a-share-agents/plugins/agent-plugins/daily-predictor/.claude-plugin/plugin.json
+
+[Agent: equity-researcher]
+  OK
+
+[Agent: market-monitor]
+  OK
+
+[Agent: meta-strategist]
+  OK
+
+[Agent: portfolio-manager]
+  OK
+
+[Agent: strategy-analyst]
+  OK
+
+==================================================
+Found 12 issue(s).

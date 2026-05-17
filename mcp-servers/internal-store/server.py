@@ -56,6 +56,32 @@ def _init_db():
             cash        REAL DEFAULT 0,
             updated_at  TEXT DEFAULT (datetime('now'))
         );
+        CREATE TABLE IF NOT EXISTS experiments (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            name        TEXT NOT NULL,
+            strategy    TEXT NOT NULL,
+            params      TEXT NOT NULL,
+            result      TEXT NOT NULL,
+            created_at  TEXT DEFAULT (datetime('now'))
+        );
+        CREATE TABLE IF NOT EXISTS transitions (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            experiment_id INTEGER NOT NULL,
+            state       TEXT NOT NULL,
+            strategy    TEXT NOT NULL,
+            reward      TEXT NOT NULL,
+            next_state  TEXT NOT NULL,
+            created_at  TEXT DEFAULT (datetime('now'))
+        );
+        CREATE TABLE IF NOT EXISTS episode_summaries (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            period          TEXT NOT NULL,
+            initial_capital REAL NOT NULL,
+            final_nav       REAL NOT NULL,
+            sharpe          REAL NOT NULL,
+            max_drawdown    REAL NOT NULL,
+            created_at      TEXT DEFAULT (datetime('now'))
+        );
     """
     )
     conn.commit()
@@ -147,6 +173,137 @@ def get_portfolio(name: str = "default") -> dict:
         }
     except Exception as e:
         return {"error": str(e), "tool": "get_portfolio"}
+
+
+@mcp.tool()
+def record_experiment(name: str, strategy: dict, params: dict, result: dict) -> list[dict]:
+    """
+    Record an experiment run.
+
+    Args:
+        name:     Experiment name.
+        strategy: Strategy configuration dict.
+        params:   Strategy parameters dict.
+        result:   Result metrics dict (final_nav, sharpe, max_drawdown).
+    """
+    try:
+        conn = sqlite3.connect(str(DB_PATH))
+        conn.row_factory = sqlite3.Row
+        conn.execute(
+            "INSERT INTO experiments (name, strategy, params, result) VALUES (?, ?, ?, ?)",
+            (name, json.dumps(strategy), json.dumps(params), json.dumps(result)),
+        )
+        rows = conn.execute("SELECT * FROM experiments ORDER BY id DESC LIMIT 1").fetchall()
+        conn.commit()
+        conn.close()
+        return [dict(r) for r in rows]
+    except Exception as e:
+        return [{"error": str(e), "tool": "record_experiment"}]
+
+
+@mcp.tool()
+def list_experiments() -> list[dict]:
+    """List all recorded experiments."""
+    try:
+        conn = sqlite3.connect(str(DB_PATH))
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute("SELECT * FROM experiments ORDER BY created_at DESC").fetchall()
+        conn.close()
+        return [dict(r) for r in rows]
+    except Exception as e:
+        return [{"error": str(e), "tool": "list_experiments"}]
+
+
+@mcp.tool()
+def get_best_strategies(top_k: int = 5) -> list[dict]:
+    """
+    Get top-k strategies ordered by final_nav descending.
+
+    Args:
+        top_k: Number of top strategies to return.
+    """
+    try:
+        conn = sqlite3.connect(str(DB_PATH))
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            "SELECT *, json_extract(result, '$.final_nav') AS final_nav FROM experiments ORDER BY CAST(json_extract(result, '$.final_nav') AS REAL) DESC LIMIT ?",
+            (top_k,),
+        ).fetchall()
+        conn.close()
+        return [dict(r) for r in rows]
+    except Exception as e:
+        return [{"error": str(e), "tool": "get_best_strategies"}]
+
+
+@mcp.tool()
+def record_transition(
+    experiment_id: int, state: dict, strategy: dict, reward: dict, next_state: dict
+) -> list[dict]:
+    """
+    Record a state transition for RL-based strategies.
+
+    Args:
+        experiment_id: ID of the experiment this transition belongs to.
+        state:         Current state dict.
+        strategy:      Action/strategy dict.
+        reward:        Reward dict.
+        next_state:    Resulting state dict.
+    """
+    try:
+        conn = sqlite3.connect(str(DB_PATH))
+        conn.row_factory = sqlite3.Row
+        conn.execute(
+            "INSERT INTO transitions (experiment_id, state, strategy, reward, next_state) VALUES (?, ?, ?, ?, ?)",
+            (experiment_id, json.dumps(state), json.dumps(strategy), json.dumps(reward), json.dumps(next_state)),
+        )
+        rows = conn.execute("SELECT * FROM transitions ORDER BY id DESC LIMIT 1").fetchall()
+        conn.commit()
+        conn.close()
+        return [dict(r) for r in rows]
+    except Exception as e:
+        return [{"error": str(e), "tool": "record_transition"}]
+
+
+@mcp.tool()
+def record_episode_summary(
+    period: str, initial_capital: float, final_nav: float, sharpe: float, max_drawdown: float
+) -> list[dict]:
+    """
+    Record an episode summary.
+
+    Args:
+        period:         Period identifier (e.g., "2024Q1").
+        initial_capital: Starting capital.
+        final_nav:      Final NAV (net asset value).
+        sharpe:         Sharpe ratio.
+        max_drawdown:   Maximum drawdown.
+    """
+    try:
+        conn = sqlite3.connect(str(DB_PATH))
+        conn.row_factory = sqlite3.Row
+        conn.execute(
+            "INSERT INTO episode_summaries (period, initial_capital, final_nav, sharpe, max_drawdown) VALUES (?, ?, ?, ?, ?)",
+            (period, initial_capital, final_nav, sharpe, max_drawdown),
+        )
+        rows = conn.execute("SELECT * FROM episode_summaries ORDER BY id DESC LIMIT 1").fetchall()
+        conn.commit()
+        conn.close()
+        return [dict(r) for r in rows]
+    except Exception as e:
+        return [{"error": str(e), "tool": "record_episode_summary"}]
+
+
+@mcp.tool()
+def list_episode_summaries() -> list[dict]:
+    """List all episode summaries."""
+    try:
+        conn = sqlite3.connect(str(DB_PATH))
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute("SELECT * FROM episode_summaries ORDER BY created_at DESC").fetchall()
+        conn.close()
+        return [dict(r) for r in rows]
+    except Exception as e:
+        return [{"error": str(e), "tool": "list_episode_summaries"}]
 
 
 # --- ASGI App ---

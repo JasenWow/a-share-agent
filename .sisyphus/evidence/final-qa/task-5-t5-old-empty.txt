@@ -1,0 +1,3 @@
+=== T5 QA PASS - Old location empty ===
+a-share-analysis/skills/ count: 0 (old location empty)
+=== PASS ===

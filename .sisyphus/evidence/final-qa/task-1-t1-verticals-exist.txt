@@ -1,0 +1,8 @@
+=== T1 QA PASS ===
+a-share-analysis
+equity-research
+market-data
+market-monitor
+simulation
+trading-strategy
+=== PASS ===

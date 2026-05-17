@@ -1,7 +1,6 @@
 ---
 name: predict
 description: Run next-day prediction for watchlist stocks
-agent: daily-predictor
 trigger: /predict
 ---
 

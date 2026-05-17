@@ -1,0 +1,3 @@
+=== T1 QA PASS (plugin.json skill lists correct) ===
+market-data, trading-strategy, market-monitor all OK
+=== PASS ===

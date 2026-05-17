@@ -1,0 +1,7 @@
+{
+  "name": "market-data",
+  "version": "0.1.0",
+  "description": "Core market data: factor screening, factor research, portfolio optimization",
+  "skills": ["factor-screen", "factor-research", "portfolio-optimize"],
+  "mcp_dependencies": ["akshare", "tushare", "internal-store"]
+}

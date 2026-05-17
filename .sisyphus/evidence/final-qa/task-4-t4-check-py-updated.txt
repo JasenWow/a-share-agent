@@ -1,0 +1,4 @@
+=== T4 QA PASS - check.py references new structure ===
+market-data, trading-strategy, simulation, meta-strategist, strategy-analyst: ALL found
+a-share-analysis reference: removed OK
+=== PASS ===

@@ -1,0 +1,7 @@
+=== T6 QA PASS - All 7 commands in correct verticals ===
+market-data: screen.md, factor.md, optimize.md
+equity-research: research.md
+trading-strategy: backtest.md
+market-monitor: market.md
+simulation: predict.md
+=== PASS ===

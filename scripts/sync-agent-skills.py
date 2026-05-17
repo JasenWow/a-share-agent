@@ -3,7 +3,7 @@
 Sync skills from vertical-plugins into agent-plugins.
 
 Reads plugin.json from each agent plugin, resolves skill references
-(format: "a-share-analysis:factor-screen"), and copies SKILL.md content
+(format: "vertical:skill-name"), and copies SKILL.md content
 into the agent's skills/ directory.
 
 Usage:
@@ -11,7 +11,6 @@ Usage:
 """
 
 import json
-import shutil
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
@@ -31,8 +30,8 @@ def load_plugin_config(plugin_dir: Path) -> dict:
 def resolve_skill(skill_ref: str) -> Path | None:
     """
     Resolve a skill reference.
-    Format: "a-share-analysis:factor-screen"
-    -> vertical-plugins/a-share-analysis/skills/factor-screen/
+    Format: "vertical:skill-name"
+    -> vertical-plugins/<vertical>/skills/<skill>/
     """
     parts = skill_ref.split(":")
     if len(parts) != 2:

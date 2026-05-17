@@ -1,6 +1,6 @@
 name: market-monitor
 description: A-share market condition monitoring agent
 skills:
-  - path: ../../plugins/vertical-plugins/a-share-analysis/skills/market-breadth
-  - path: ../../plugins/vertical-plugins/a-share-analysis/skills/xlsx-author
+  - path: ../../plugins/vertical-plugins/market-monitor/skills/market-breadth
+  - path: ../../plugins/vertical-plugins/trading-strategy/skills/xlsx-author
 system_prompt: ../../plugins/agent-plugins/market-monitor/agents/market-monitor.md

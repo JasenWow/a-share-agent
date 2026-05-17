@@ -1,6 +1,6 @@
+import json
 import pytest
 import sqlite3
-import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
@@ -41,6 +41,32 @@ def temp_db(tmp_path):
             cash REAL DEFAULT 0,
             updated_at TEXT DEFAULT (datetime('now'))
         );
+        CREATE TABLE IF NOT EXISTS experiments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            strategy TEXT NOT NULL,
+            params TEXT NOT NULL,
+            result TEXT NOT NULL,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+        CREATE TABLE IF NOT EXISTS transitions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            experiment_id INTEGER NOT NULL,
+            state TEXT NOT NULL,
+            strategy TEXT NOT NULL,
+            reward TEXT NOT NULL,
+            next_state TEXT NOT NULL,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+        CREATE TABLE IF NOT EXISTS episode_summaries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            period TEXT NOT NULL,
+            initial_capital REAL NOT NULL,
+            final_nav REAL NOT NULL,
+            sharpe REAL NOT NULL,
+            max_drawdown REAL NOT NULL,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
     """
     )
     conn.commit()
@@ -64,3 +90,86 @@ class TestListBacktestResults:
 
             result = list_backtest_results()
             assert result == []
+
+
+class TestRecordExperiment:
+    def test_record_experiment_basic(self, temp_db):
+        with patch("server.DB_PATH", temp_db):
+            from server import record_experiment
+
+            strategy = {"type": "momentum", "period": 20}
+            params = {"lookback": 60, "rebalance": "monthly"}
+            result_data = {"final_nav": 1.15, "sharpe": 1.8, "max_drawdown": 0.12}
+            rows = record_experiment("test_exp", strategy, params, result_data)
+            assert len(rows) == 1
+            assert rows[0]["name"] == "test_exp"
+            assert rows[0]["strategy"] == json.dumps(strategy)
+
+    def test_list_experiments(self, temp_db):
+        with patch("server.DB_PATH", temp_db):
+            from server import record_experiment, list_experiments
+
+            strategy = {"type": "mean_reversion"}
+            params = {"window": 30}
+            result_data = {"final_nav": 1.05}
+            record_experiment("exp1", strategy, params, result_data)
+            record_experiment("exp2", strategy, params, result_data)
+            rows = list_experiments()
+            assert len(rows) == 2
+
+
+class TestGetBestStrategies:
+    def test_get_best_strategies(self, temp_db):
+        with patch("server.DB_PATH", temp_db):
+            from server import record_experiment, get_best_strategies
+
+            strategy = {"type": "momentum"}
+            params = {"period": 20}
+            record_experiment("exp1", strategy, params, {"final_nav": 1.1, "sharpe": 1.0, "max_drawdown": 0.1})
+            record_experiment("exp2", strategy, params, {"final_nav": 1.3, "sharpe": 2.0, "max_drawdown": 0.05})
+            record_experiment("exp3", strategy, params, {"final_nav": 1.2, "sharpe": 1.5, "max_drawdown": 0.08})
+            best = get_best_strategies(top_k=2)
+            assert len(best) == 2
+            assert best[0]["final_nav"] == 1.3
+            assert best[1]["final_nav"] == 1.2
+
+
+class TestRecordTransition:
+    def test_record_transition_basic(self, temp_db):
+        with patch("server.DB_PATH", temp_db):
+            from server import record_transition
+
+            state = {"position": 0.5, "cash": 50000}
+            strategy = {"action": "buy", "volume": 100}
+            reward = {"pnl": 1000}
+            next_state = {"position": 0.6, "cash": 49000}
+            rows = record_transition(1, state, strategy, reward, next_state)
+            assert len(rows) == 1
+            assert rows[0]["experiment_id"] == 1
+            assert rows[0]["state"] == json.dumps(state)
+
+
+class TestRecordEpisodeSummary:
+    def test_record_episode_summary_basic(self, temp_db):
+        with patch("server.DB_PATH", temp_db):
+            from server import record_episode_summary
+
+            rows = record_episode_summary(
+                period="2024Q1",
+                initial_capital=1000000,
+                final_nav=1150000,
+                sharpe=1.8,
+                max_drawdown=0.12,
+            )
+            assert len(rows) == 1
+            assert rows[0]["period"] == "2024Q1"
+            assert rows[0]["final_nav"] == 1150000
+
+    def test_list_episode_summaries(self, temp_db):
+        with patch("server.DB_PATH", temp_db):
+            from server import record_episode_summary, list_episode_summaries
+
+            record_episode_summary("2024Q1", 1000000, 1100000, 1.5, 0.1)
+            record_episode_summary("2024Q2", 1100000, 1150000, 1.8, 0.12)
+            rows = list_episode_summaries()
+            assert len(rows) == 2

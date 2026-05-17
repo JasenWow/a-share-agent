@@ -1,0 +1,3 @@
+=== T3 QA PASS - system-prompt has required concepts ===
+evolution loop: OK, doom loop: OK, memory store: OK
+=== PASS ===
