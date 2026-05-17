@@ -2,6 +2,8 @@
 
 from pathlib import Path
 import subprocess
+import json
+from datetime import datetime
 
 FACTOR_TEMPLATE = '''"""
 Auto-generated factor: {factor_name}
@@ -31,7 +33,6 @@ def compute_{func_name}(df: pd.DataFrame, **params) -> pd.Series:
 def generate_factor_script(factor_name: str, description: str, implementation: str) -> str:
     """Generate a factor computation script."""
     func_name = factor_name.lower().replace("-", "_").replace(" ", "_").replace("__", "_")
-    from datetime import datetime
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     script = FACTOR_TEMPLATE.format(
@@ -71,6 +72,20 @@ def validate_factor_script(script: str) -> tuple[bool, str]:
 
     return True, "valid"
 
+def register_factor(factor_name: str, script_path: str, registry_path: Path) -> None:
+    """Register a new custom factor in the factor registry."""
+    if registry_path.exists():
+        data = json.loads(registry_path.read_text())
+    else:
+        data = {"custom_factors": []}
+
+    data["custom_factors"].append({
+        "name": factor_name,
+        "script": script_path,
+        "registered_at": datetime.now().strftime("%Y-%m-%d"),
+    })
+    registry_path.write_text(json.dumps(data, indent=2))
+
 def save_factor_script(factor_name: str, script: str, target_dir: Path) -> Path:
     """Save generated script to target_dir/generated/, with collision detection."""
     func_name = factor_name.lower().replace("-", "_").replace(" ", "_").replace("__", "_")
@@ -83,4 +98,9 @@ def save_factor_script(factor_name: str, script: str, target_dir: Path) -> Path:
         raise FileExistsError(f"File already exists: {file_path}")
 
     file_path.write_text(script)
+
+    # Auto-register the new factor
+    registry_path = target_dir / "factor_registry.json"
+    register_factor(factor_name, f"generated/{filename}", registry_path)
+
     return file_path

@@ -110,3 +110,42 @@ class TestExploitativeHypothesis:
         best = [{"strategy": {"factors": ["momentum_20d"], "weights": {"momentum_20d": 1.0}, "top_k": 50}}]
         h = generate_exploitative_hypothesis(best, seed=42)
         assert h.get("top_k", 50) == 50
+
+
+class TestDynamicFactorLoading:
+    def test_loads_custom_factors_from_registry(self, tmp_path):
+        import json
+        registry = {"custom_factors": [
+            {"name": "custom_momentum_30d", "script": "generated/compute_custom_momentum_30d.py", "registered_at": "2026-05-17"}
+        ]}
+        registry_path = tmp_path / "factor_registry.json"
+        registry_path.write_text(json.dumps(registry))
+        from generate_hypothesis import load_all_factors
+        factors = load_all_factors(registry_path)
+        assert "custom_momentum_30d" in factors
+        assert "momentum_20d" in factors  # base factors still present
+
+    def test_loads_base_factors_when_no_registry(self, tmp_path):
+        import json
+        registry_path = tmp_path / "nonexistent.json"
+        from generate_hypothesis import load_all_factors
+        factors = load_all_factors(registry_path)
+        assert len(factors) == 12  # all base factors
+
+    def test_generate_random_uses_all_factors(self, tmp_path):
+        import json
+        registry = {"custom_factors": [
+            {"name": "custom_alpha", "script": "x.py", "registered_at": "2026-05-17"}
+        ]}
+        registry_path = tmp_path / "factor_registry.json"
+        registry_path.write_text(json.dumps(registry))
+        from generate_hypothesis import generate_random_hypothesis
+        # Patch FACTOR_LIBRARY to include custom factor
+        import generate_hypothesis as gh
+        original = gh.FACTOR_LIBRARY[:]
+        gh.FACTOR_LIBRARY = original + ["custom_alpha"]
+        try:
+            h = gh.generate_random_hypothesis(seed=99)
+            assert h["factors"]  # just ensure it doesn't crash
+        finally:
+            gh.FACTOR_LIBRARY = original

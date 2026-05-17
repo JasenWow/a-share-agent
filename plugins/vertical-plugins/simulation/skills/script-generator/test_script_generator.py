@@ -65,3 +65,24 @@ class TestScriptGenerator:
             assert result_path.exists()
             assert result_path.name == "compute_my_factor.py"
             assert result_path.read_text() == script
+
+
+class TestFactorRegistration:
+    def test_register_factor_creates_registry(self, tmp_path):
+        import json
+        from generate_factor_script import register_factor
+        registry_path = tmp_path / "factor_registry.json"
+        register_factor("custom_momentum_30d", "generated/compute_custom_momentum_30d.py", registry_path)
+        assert registry_path.exists()
+        data = json.loads(registry_path.read_text())
+        assert len(data["custom_factors"]) == 1
+        assert data["custom_factors"][0]["name"] == "custom_momentum_30d"
+
+    def test_register_factor_appends_to_existing(self, tmp_path):
+        import json
+        from generate_factor_script import register_factor
+        registry_path = tmp_path / "factor_registry.json"
+        register_factor("factor_a", "a.py", registry_path)
+        register_factor("factor_b", "b.py", registry_path)
+        data = json.loads(registry_path.read_text())
+        assert len(data["custom_factors"]) == 2

@@ -116,3 +116,17 @@ def generate_exploitative_hypothesis(best_strategies: list[dict], seed=None) -> 
         "stop_loss": rng.choice(STOP_LOSS_OPTIONS),
         "max_position": rng.choice(MAX_POSITION_OPTIONS),
     }
+
+
+import json
+from pathlib import Path
+
+def load_all_factors(registry_path: Path | None = None) -> list[str]:
+    """Load base factors + any registered custom factors."""
+    factors = FACTOR_LIBRARY[:]
+    if registry_path and registry_path.exists():
+        data = json.loads(registry_path.read_text())
+        for entry in data.get("custom_factors", []):
+            if entry["name"] not in factors:
+                factors.append(entry["name"])
+    return factors
