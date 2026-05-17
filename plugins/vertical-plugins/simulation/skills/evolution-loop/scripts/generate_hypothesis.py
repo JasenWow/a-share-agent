@@ -1,5 +1,6 @@
 """Hypothesis generation for Meta-Agent strategy exploration."""
 
+import akshare as ak
 import random
 from typing import Literal
 
@@ -13,11 +14,49 @@ FACTOR_LIBRARY = [
 ]
 
 # Strategy parameters
-UNIVERSE_OPTIONS = ["全A", "沪深300", "中证500", "中证1000"]
+UNIVERSE_CONFIGS = {
+    "全A":      {"type": "index", "name": "全A"},
+    "沪深300":  {"type": "index", "name": "000300"},
+    "中证500":  {"type": "index", "name": "000905"},
+    "中证1000": {"type": "index", "name": "000852"},
+    "AI-concept": {"type": "concept", "name": "人工智能"},
+    "custom":   {"type": "custom", "codes": []},
+}
+
+UNIVERSE_OPTIONS = list(UNIVERSE_CONFIGS.keys())
+
 REBALANCE_OPTIONS = ["daily", "weekly", "monthly"]
 TOP_K_OPTIONS = [20, 30, 50, 100]
 STOP_LOSS_OPTIONS = [0.05, 0.10, 0.15]
 MAX_POSITION_OPTIONS = [0.05, 0.10, 0.15]
+
+
+def resolve_universe(config: dict) -> list[str]:
+    """Resolve a universe config to a list of stock codes.
+
+    Args:
+        config: Dict with keys "type" and optionally "name" or "codes".
+
+    Returns:
+        List of stock code strings.
+    """
+    universe_type = config.get("type", "index")
+
+    if universe_type == "custom":
+        return config.get("codes", [])
+
+    if universe_type == "concept":
+        concept_name = config.get("name", "人工智能")
+        df = ak.stock_board_concept_cons_em(symbol=concept_name)
+        return df["代码"].tolist()
+
+    # index type
+    index_name = config.get("name", "000300")
+    if index_name == "全A":
+        df = ak.stock_zh_a_spot_em()
+        return df["代码"].tolist()
+    df = ak.index_stock_cons_csindex(symbol=index_name)
+    return df["代码"].tolist()
 
 
 def generate_random_hypothesis(seed=None) -> dict:

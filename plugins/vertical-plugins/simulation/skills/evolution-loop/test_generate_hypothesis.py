@@ -14,6 +14,41 @@ from generate_hypothesis import (
 )
 
 
+from unittest.mock import patch, MagicMock
+import pandas as pd
+
+
+class TestPluggableUniverse:
+    def test_universe_configs_has_all_types(self):
+        from generate_hypothesis import UNIVERSE_CONFIGS
+        assert "全A" in UNIVERSE_CONFIGS
+        assert "沪深300" in UNIVERSE_CONFIGS
+        assert "AI-concept" in UNIVERSE_CONFIGS
+        assert "custom" in UNIVERSE_CONFIGS
+
+    def test_resolve_custom_universe(self):
+        from generate_hypothesis import resolve_universe, UNIVERSE_CONFIGS
+        config = {"type": "custom", "codes": ["000001", "600519"]}
+        codes = resolve_universe(config)
+        assert codes == ["000001", "600519"]
+
+    @patch("generate_hypothesis.ak")
+    def test_resolve_concept_universe(self, mock_ak):
+        mock_ak.stock_board_concept_cons_em.return_value = pd.DataFrame({
+            "代码": ["000001", "600519", "000002"],
+        })
+        from generate_hypothesis import resolve_universe
+        config = {"type": "concept", "name": "人工智能"}
+        codes = resolve_universe(config)
+        assert len(codes) == 3
+        assert "000001" in codes
+
+    def test_generate_random_with_ai_concept(self):
+        from generate_hypothesis import generate_random_hypothesis
+        h = generate_random_hypothesis(seed=42)
+        assert "universe" in h
+
+
 class TestFactorLibrary:
     def test_factor_library_has_12_factors(self):
         assert len(FACTOR_LIBRARY) == 12
