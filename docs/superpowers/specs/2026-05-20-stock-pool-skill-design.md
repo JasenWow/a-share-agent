@@ -127,24 +127,35 @@ uv run python plugins/vertical-plugins/equity-research/skills/stock-pool/scripts
 
 ### Input Format
 
+Agent pre-fetches all data via MCP tools and writes a candidate data file:
+
 ```json
 {
   "theme": "机器人",
   "candidates": [
-    {"code": "300124.SZ", "name": "汇川技术", "type": "pure_play"},
-    {"code": "002472.SZ", "name": "双环传动", "type": "second_order"}
+    {
+      "code": "300124.SZ",
+      "name": "汇川技术",
+      "type": "pure_play",
+      "is_st": false,
+      "avg_turnover_20d": 120000000,
+      "pe_ttm": 45.2,
+      "pe_percentile": 62,
+      "revenue_share_pct": 35
+    }
   ]
 }
 ```
 
 ### Internal Logic
 
-1. Read candidate JSON from `--input`
-2. For each stock, fetch data via MCP tools:
-   - `akshare.stock_zh_a_spot` — ST status, current price
-   - `akshare.stock_zh_a_hist` — 20-day avg turnover
-   - `tushare.fina_indicator` — PE_TTM, ROE
-3. Score each dimension, output pass/fail + reason
+1. Read candidate JSON from `--input` (pre-fetched by Agent)
+2. For each stock, apply filter rules:
+   - `is_st == true` → fail fundamentals
+   - `avg_turnover_20d < min_liquidity` → fail liquidity
+   - `pe_percentile > pe_percentile_cap` → fail valuation
+   - `revenue_share_pct < 20 AND type != "pure_play"` → fail relevance
+3. Output pass/fail per dimension with reason
 4. Aggregate and write to `--output`
 
 ### Output Format
@@ -174,7 +185,9 @@ uv run python plugins/vertical-plugins/equity-research/skills/stock-pool/scripts
 
 ### Data Source in Script
 
-scorecard.py calls MCP tools directly (not via Agent). It uses the existing MCP server endpoints configured in `.mcp.json`. The script imports `mcp` client or uses HTTP calls to localhost:8000/8001/8002.
+scorecard.py does NOT call MCP servers directly. Instead, it reads from pre-fetched JSON data files that the Agent produces during Step 2's discovery phase. The Agent collects all required data via MCP tools and writes a single candidate data file containing: stock code, name, type, ST status, 20-day avg turnover, PE_TTM, revenue share. scorecard.py only applies the filtering rules — no network calls.
+
+This keeps the script simple, testable, and decoupled from MCP server availability.
 
 ## Data Storage
 
