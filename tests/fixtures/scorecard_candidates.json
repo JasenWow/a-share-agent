@@ -1,0 +1,35 @@
+{
+  "theme": "机器人",
+  "candidates": [
+    {
+      "code": "300124.SZ",
+      "name": "汇川技术",
+      "type": "pure_play",
+      "is_st": false,
+      "avg_turnover_20d": 120000000,
+      "pe_ttm": 45.2,
+      "pe_percentile": 62,
+      "revenue_share_pct": 35
+    },
+    {
+      "code": "000001.SZ",
+      "name": "平安银行",
+      "type": "concept",
+      "is_st": false,
+      "avg_turnover_20d": 300000000,
+      "pe_ttm": 5.2,
+      "pe_percentile": 30,
+      "revenue_share_pct": 5
+    },
+    {
+      "code": "688001.SZ",
+      "name": "ST某股",
+      "type": "concept",
+      "is_st": true,
+      "avg_turnover_20d": 80000000,
+      "pe_ttm": 100.0,
+      "pe_percentile": 98,
+      "revenue_share_pct": 10
+    }
+  ]
+}
