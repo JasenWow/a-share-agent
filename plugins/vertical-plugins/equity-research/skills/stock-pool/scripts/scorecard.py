@@ -49,7 +49,7 @@ def _evaluate_stock(
     relevance_pass = stock_type == "pure_play" or revenue_share >= 20
     relevance_value = f"{revenue_share}%"
     if not relevance_pass:
-        reasons.append(f"相关性不足：收入占比 {revenue_share}%（需 >= 20% 且非 pure_play）")
+        reasons.append(f"相关性不足：收入占比 {revenue_share}%（需 >= 20% 或 pure_play）")
 
     # --- Liquidity ---
     avg_turnover = stock.get("avg_turnover_20d", 0)
@@ -66,12 +66,16 @@ def _evaluate_stock(
         reasons.append("基本面：ST 股票")
 
     # --- Valuation ---
-    pe_ttm = stock.get("pe_ttm", 0)
-    pe_pct = stock.get("pe_percentile", 0)
-    valuation_pass = pe_pct <= pe_percentile_cap
-    valuation_value = f"PE {pe_ttm}x (分位 {pe_pct}%)"
-    if not valuation_pass:
-        reasons.append(f"估值过高：PE {pe_ttm}x (分位 {pe_pct}%，上限 {pe_percentile_cap}%)")
+    pe_ttm = stock.get("pe_ttm")
+    if pe_ttm is None:
+        valuation_pass = True
+        valuation_value = "PE无数据(跳过)"
+    else:
+        pe_pct = stock.get("pe_percentile", 0)
+        valuation_pass = pe_pct <= pe_percentile_cap
+        valuation_value = f"PE {pe_ttm}x (分位 {pe_pct}%)"
+        if not valuation_pass:
+            reasons.append(f"估值过高：PE {pe_ttm}x (分位 {pe_pct}%，上限 {pe_percentile_cap}%)")
 
     scorecard = {
         "relevance": {"value": relevance_value, "pass": relevance_pass},
@@ -159,8 +163,6 @@ def main(argv: list[str] | None = None) -> None:
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with open(args.output, "w") as f:
         json.dump(result, f, ensure_ascii=False, indent=2)
-
-    print(f"Scorecard complete: {len(result['passed'])} passed, {len(result['rejected'])} rejected")
 
 
 if __name__ == "__main__":
