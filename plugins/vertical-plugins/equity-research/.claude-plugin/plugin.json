@@ -2,6 +2,6 @@
   "name": "equity-research",
   "version": "0.1.0",
   "description": "Equity research: financial analysis for A-share stocks",
-  "skills": ["financial-analysis"],
+  "skills": ["financial-analysis", "stock-pool"],
   "mcp_dependencies": ["akshare", "tushare", "internal-store"]
 }

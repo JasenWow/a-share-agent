@@ -10,7 +10,8 @@ plugins/vertical-plugins/equity-research/
 │   └── plugin.json         # Plugin metadata + skill list
 ├── .mcp.json               # MCP server config
 ├── skills/                  # Skills
-│   └── financial-analysis/
+│   ├── financial-analysis/
+│   └── stock-pool/
 └── commands/               # Slash commands
 ```
 
@@ -19,6 +20,7 @@ plugins/vertical-plugins/equity-research/
 | Skill | Purpose |
 |-------|---------|
 | `financial-analysis` | Deep financial analysis and valuation |
+| `stock-pool` | 主题股票池构建：价值链分析、标的发现、量化初筛 |
 
 ## ANTI-PATTERNS
 
