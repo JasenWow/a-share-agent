@@ -64,7 +64,7 @@ a-share-agents/
 
 ## Contributing
 
-See `contributing/README.md` for full guidelines.
+See `CONTRIBUTING.md` for guidelines, or `docs/draft/` for detailed references.
 
 ## License
 
