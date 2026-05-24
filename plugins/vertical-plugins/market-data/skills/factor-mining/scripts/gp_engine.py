@@ -144,7 +144,11 @@ def run_evolution(
         def _evaluate(ind):
             expr_str = individual_to_expression(ind)
             try:
-                fitness, _ = evaluate_expression(expr_str, **kwargs)
+                fitness, _ = evaluate_expression(
+                    expr_str,
+                    data_arrays=kwargs.get("data_arrays"),
+                    forward_returns_2d=kwargs.get("forward_returns_2d"),
+                )
             except Exception:
                 fitness = -999.0
             return (fitness,)

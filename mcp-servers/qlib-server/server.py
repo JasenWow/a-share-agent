@@ -60,22 +60,15 @@ def qlib_init_data(source: str = "qlib_cn_data") -> dict:
         QLIB_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
         if source == "qlib_cn_data":
-            result = subprocess.run(
-                [
-                    "python",
-                    "-m",
-                    "qlib.run.get_data",
-                    "--qlib-dir",
-                    str(QLIB_DATA_DIR),
-                    "--region",
-                    "cn",
-                ],
-                capture_output=True,
-                text=True,
-                timeout=600,
+            from qlib.tests.data import GetData
+
+            gd = GetData(delete_zip_file=True)
+            gd.qlib_data(
+                name="qlib_data",
+                target_dir=str(QLIB_DATA_DIR),
+                region="cn",
+                exists_skip=True,
             )
-            if result.returncode != 0:
-                return {"status": "error", "message": f"Data download failed: {result.stderr[:500]}"}
         else:
             return {"status": "error", "message": f"Unsupported source: {source}. Use 'qlib_cn_data'."}
 
@@ -112,7 +105,8 @@ def qlib_get_data(
         if fields is None:
             fields = ["$close", "$open", "$high", "$low", "$volume", "$amount"]
 
-        df = D.features(instruments, fields, start_time=start_date or None, end_time=end_date or None)
+        inst = D.instruments(instruments)
+        df = D.features(inst, fields, start_time=start_date or None, end_time=end_date or None)
         return _df_to_records(df)
     except Exception as e:
         return [{"error": str(e), "tool": "qlib_get_data"}]
@@ -143,7 +137,8 @@ def qlib_eval_expression(
         _ensure_qlib_init()
         from qlib.data import D
 
-        df = D.features(instruments, [expression], start_time=start_date or None, end_time=end_date or None)
+        inst = D.instruments(instruments)
+        df = D.features(inst, [expression], start_time=start_date or None, end_time=end_date or None)
         return _df_to_records(df)
     except Exception as e:
         return [{"error": str(e), "tool": "qlib_eval_expression"}]

@@ -123,11 +123,15 @@ def evaluate_expression(
     *,
     _mock_factor_values: np.ndarray | None = None,
     _mock_forward_returns: np.ndarray | None = None,
+    data_arrays: dict | None = None,
+    forward_returns_2d: np.ndarray | None = None,
 ) -> tuple[float, dict]:
     """Evaluate a factor expression and return fitness + detailed metrics.
 
-    In production, this will compute factor values from real data.
-    For testing / bootstrap, pass _mock_factor_values and _mock_forward_returns.
+    Three modes:
+    1. Mock: pass _mock_factor_values and _mock_forward_returns
+    2. Production: pass data_arrays (field→ndarray) and forward_returns_2d
+    3. Neither: raises NotImplementedError
 
     Args:
         expression: Qlib-style factor expression string.
@@ -136,23 +140,28 @@ def evaluate_expression(
         end_date: Back-test end date.
         _mock_factor_values: (T, N) mock factor values for testing.
         _mock_forward_returns: (T, N) mock forward returns for testing.
+        data_arrays: Dict mapping field names to (T, N) arrays for real eval.
+        forward_returns_2d: (T, N) forward returns for real eval.
 
     Returns:
         Tuple of (fitness_score, metrics_dict).
     """
-    # Use mock data if provided (bootstrap / testing mode)
     if _mock_factor_values is not None and _mock_forward_returns is not None:
         factor_values = np.asarray(_mock_factor_values, dtype=float)
         forward_returns = np.asarray(_mock_forward_returns, dtype=float)
-
-        # Reshape to 2-D if 1-D
         if factor_values.ndim == 1:
             factor_values = factor_values.reshape(1, -1)
         if forward_returns.ndim == 1:
             forward_returns = forward_returns.reshape(1, -1)
+    elif data_arrays is not None and forward_returns_2d is not None:
+        from evaluator import evaluate_expression_vec
+
+        factor_values = evaluate_expression_vec(expression, data_arrays)
+        forward_returns = np.asarray(forward_returns_2d, dtype=float)
+        if factor_values.ndim == 1:
+            factor_values = factor_values.reshape(1, -1)
     else:
-        # TODO: integrate with actual data connectors in production
-        raise NotImplementedError("Real data evaluation not yet implemented; pass mock data")
+        raise NotImplementedError("Pass mock data or (data_arrays + forward_returns_2d)")
 
     ic_series = compute_ic_series(factor_values, forward_returns)
     turnover = compute_turnover(np.argsort(np.argsort(factor_values), axis=1))

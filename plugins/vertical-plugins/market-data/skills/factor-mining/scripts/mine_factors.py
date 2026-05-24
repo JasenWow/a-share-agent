@@ -46,6 +46,7 @@ def mine_factors(
     max_depth: int = 4,
     top_k: int = 10,
     seed: int | None = None,
+    **kwargs: Any,
 ) -> list[dict]:
     """Run the factor mining loop.
 
@@ -61,6 +62,7 @@ def mine_factors(
         max_depth: Maximum expression tree depth.
         top_k: Number of top candidates to return.
         seed: Random seed for reproducibility.
+        **kwargs: Passed to run_evolution (e.g., data_arrays, forward_returns_2d).
 
     Returns:
         List of candidate dicts with expression, fitness, name, hash, and
@@ -79,6 +81,7 @@ def mine_factors(
         top_k=top_k,
         mock_mode=mock_mode,
         seed=seed,
+        **kwargs,
     )
 
     # Enrich with metadata
