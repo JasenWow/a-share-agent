@@ -2,6 +2,7 @@
 change: factor-mining-mvp
 design-doc: docs/superpowers/specs/2026-05-30-factor-mining-mvp-design.md
 base-ref: 2f7239195ab8d036fedeb77d46bc48cc847227f2
+archived-with: 2026-05-30-factor-mining-mvp
 ---
 
 # Implementation Plan: Factor Mining MVP

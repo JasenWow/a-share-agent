@@ -2,6 +2,8 @@
 comet_change: factor-mining-mvp
 role: technical-design
 canonical_spec: openspec
+archived-with: 2026-05-30-factor-mining-mvp
+status: final
 ---
 
 # Factor Mining MVP — 产业驱动的量化选股系统
@@ -9,6 +11,8 @@ canonical_spec: openspec
 **Date:** 2026-05-30
 **Change:** factor-mining-mvp
 
+archived-with: 2026-05-30-factor-mining-mvp
+status: final
 ---
 
 ## 1. 设计目标
@@ -20,6 +24,8 @@ canonical_spec: openspec
 
 核心原则：**不是全市场通用因子挖掘，而是在特定产业标的上发现"这个产业里什么信号最有效"。**
 
+archived-with: 2026-05-30-factor-mining-mvp
+status: final
 ---
 
 ## 2. 架构设计
@@ -111,6 +117,8 @@ TEMPLATES = {
 - 时间窗口至少 1 年（~250 交易日 × 20-80 只 = 足够统计量）
 - forward return horizon 默认 5 日
 
+archived-with: 2026-05-30-factor-mining-mvp
+status: final
 ---
 
 ## 3. 评分排名
@@ -144,6 +152,8 @@ for each factor in active_factors:
   - 因子相关性（持仓之间是否高度同质）
   - 回撤位置（距近期高点多远）
 
+archived-with: 2026-05-30-factor-mining-mvp
+status: final
 ---
 
 ## 4. 因子生命周期
@@ -164,6 +174,8 @@ for each factor in active_factors:
 
 通过 internal-store MCP 的 `register_factor` / `list_factors` / `deprecate_factor` 管理。
 
+archived-with: 2026-05-30-factor-mining-mvp
+status: final
 ---
 
 ## 5. 数据流详细设计
@@ -202,6 +214,8 @@ def _evaluate(ind):
     return (fitness,)
 ```
 
+archived-with: 2026-05-30-factor-mining-mvp
+status: final
 ---
 
 ## 6. 文件变更清单
@@ -221,6 +235,8 @@ def _evaluate(ind):
 | `factor-mining/test_run_mining.py` | 新建 | Pipeline 测试 |
 | `factor-mining/test_ranker.py` | 新建 | 评分测试 |
 
+archived-with: 2026-05-30-factor-mining-mvp
+status: final
 ---
 
 ## 7. 风险与缓解
