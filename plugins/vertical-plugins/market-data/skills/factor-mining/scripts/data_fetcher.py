@@ -137,30 +137,73 @@ async def fetch_pool_data(
     end_date: str = "2025-12-31",
     fields: list[str] | None = None,
 ) -> tuple[dict[str, np.ndarray], list[str], list[str]]:
-    """Fetch OHLCV data for a custom list of stock codes via AKShare MCP.
+    """Fetch OHLCV data for a custom list of stock codes.
 
-    Used by factor-mining when the target is a specific industry pool
-    (e.g., stocks from stock-pool skill) rather than a Qlib universe.
-
-    Args:
-        codes: Stock codes like ["300124.SZ", "002472.SZ"].
-        start_date: Start date "YYYY-MM-DD".
-        end_date: End date "YYYY-MM-DD".
-        fields: Data fields to fetch (without $ prefix internally).
-
-    Returns:
-        (data_arrays, dates, instruments) where data_arrays maps field→ndarray(T,N).
+    Tries direct server function first (fast), falls back to MCP call.
     """
+    # Try direct import (fast, no MCP overhead)
+    try:
+        return _fetch_pool_data_direct(codes, start_date, end_date, fields)
+    except Exception:
+        pass
+
+    # Fallback to MCP
+    return await _fetch_pool_data_mcp(codes, start_date, end_date, fields)
+
+
+def _fetch_pool_data_direct(
+    codes: list[str],
+    start_date: str = "2024-01-01",
+    end_date: str = "2025-12-31",
+    fields: list[str] | None = None,
+) -> tuple[dict[str, np.ndarray], list[str], list[str]]:
+    """Fetch via direct function call to akshare-server (no MCP)."""
+    import sys
+    from pathlib import Path
+
+    # Add server path
+    server_dir = Path(__file__).resolve().parents[6] / "mcp-servers" / "akshare-server"
+    if str(server_dir) not in sys.path:
+        sys.path.insert(0, str(server_dir))
+
+    from server import stock_zh_a_hist as _hist
+
     if fields is None:
         fields = POOL_FIELDS
+    field_names = [f.lstrip("$") for f in fields]
 
-    import asyncio
-    import json
+    start_fmt = start_date.replace("-", "")
+    end_fmt = end_date.replace("-", "")
+
+    all_records = []
+    for code in codes:
+        try:
+            records = _hist(symbol=code, start_date=start_fmt, end_date=end_fmt)
+            for rec in records:
+                if isinstance(rec, dict) and "error" not in rec:
+                    rec["instrument"] = code
+                    all_records.append(rec)
+        except Exception:
+            continue
+
+    if not all_records:
+        raise ValueError(f"No data records returned for {len(codes)} stocks")
+
+    return _records_to_arrays(all_records, field_names)
+
+
+async def _fetch_pool_data_mcp(
+    codes: list[str],
+    start_date: str = "2024-01-01",
+    end_date: str = "2025-12-31",
+    fields: list[str] | None = None,
+) -> tuple[dict[str, np.ndarray], list[str], list[str]]:
+    """Fetch via MCP protocol (slower, for remote server)."""
+    if fields is None:
+        fields = POOL_FIELDS
+    field_names = [f.lstrip("$") for f in fields]
 
     AKSHARE_SERVER_URL = "http://localhost:8000/mcp"
-
-    # Strip $ prefix for field names used in pivot columns
-    field_names = [f.lstrip("$") for f in fields]
 
     all_records = []
     async with streamablehttp_client(AKSHARE_SERVER_URL) as (read, write, _):
@@ -188,17 +231,28 @@ async def fetch_pool_data(
     if not all_records:
         raise ValueError(f"No data records returned for {len(codes)} stocks")
 
+    return _records_to_arrays(all_records, field_names)
+
+
+def _records_to_arrays(
+    all_records: list[dict],
+    field_names: list[str],
+) -> tuple[dict[str, np.ndarray], list[str], list[str]]:
+    """Convert flat records to aligned (T, N) arrays."""
     df = pd.DataFrame(all_records)
+
+    # Deduplicate (MCP may return duplicates)
     date_col = "日期" if "日期" in df.columns else "datetime"
     if date_col == "日期":
         df = df.rename(columns={"日期": "datetime"})
         date_col = "datetime"
 
-    # Map AKShare column names to standard field names
     col_map = {"开盘": "open", "收盘": "close", "最高": "high", "最低": "low", "成交量": "volume"}
     df = df.rename(columns=col_map)
 
     df[date_col] = pd.to_datetime(df[date_col])
+    # Deduplicate: keep first occurrence per (date, instrument)
+    df = df.drop_duplicates(subset=[date_col, "instrument"], keep="first")
     df = df.sort_values([date_col, "instrument"])
 
     dates = sorted(df[date_col].unique())
@@ -211,9 +265,8 @@ async def fetch_pool_data(
         pivot = df.pivot(index=date_col, columns="instrument", values=fname)
         pivot = pivot.reindex(index=dates, columns=instruments)
         pivot = pivot.replace("NaN", np.nan)
-        pivot = pd.to_numeric(pivot, errors="coerce")
-        # Store with $ prefix to match template field names
-        data_arrays[f"${fname}"] = pivot.values
+        pivot = pivot.apply(pd.to_numeric, errors="coerce")
+        data_arrays[f"${fname}"] = pivot.values.astype(float)
 
     return data_arrays, [str(d.date()) for d in pd.to_datetime(dates)], instruments
 

@@ -272,7 +272,12 @@ def run_mining_pipeline(
 def main():
     """CLI entry point."""
     parser = argparse.ArgumentParser(description="Factor mining pipeline for industry stock pools")
-    parser.add_argument("--codes", required=True, nargs="+", help="Stock codes")
+    
+    # Stock pool source: either explicit codes or concept name
+    pool_group = parser.add_mutually_exclusive_group(required=True)
+    pool_group.add_argument("--codes", nargs="+", help="Explicit stock codes (e.g. 300124 002747)")
+    pool_group.add_argument("--concept", help="Concept board name (e.g. 机器人, 人工智能)")
+    
     parser.add_argument("--direction", default="综合探索", choices=list(DIRECTIONS.keys()),
                         help="Mining direction preset")
     parser.add_argument("--start-date", default="2024-01-01", help="Start date YYYY-MM-DD")
@@ -284,8 +289,22 @@ def main():
     parser.add_argument("--output", type=Path, default=None, help="Output JSON path")
     args = parser.parse_args()
 
+    # Resolve stock pool
+    codes = args.codes
+    if args.concept:
+        import sys
+        server_dir = Path(__file__).resolve().parents[6] / "mcp-servers" / "akshare-server"
+        sys.path.insert(0, str(server_dir))
+        from server import stock_board_concept_cons as _concept
+        result = _concept(symbol=args.concept)
+        codes = [d["代码"] for d in result if "error" not in d]
+        if not codes:
+            print(f"ERROR: No stocks found for concept '{args.concept}'")
+            sys.exit(1)
+        print(f"[CLI] Concept '{args.concept}': {len(codes)} stocks")
+
     result = run_mining_pipeline(
-        codes=args.codes,
+        codes=codes,
         direction=args.direction,
         start_date=args.start_date,
         end_date=args.end_date,
