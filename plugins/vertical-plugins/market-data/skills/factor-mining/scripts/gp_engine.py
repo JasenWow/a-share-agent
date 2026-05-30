@@ -106,6 +106,9 @@ def run_evolution(
     top_k: int = 10,
     mock_mode: bool = False,
     seed: int | None = None,
+    data_arrays: dict[str, np.ndarray] | None = None,
+    forward_returns_2d: np.ndarray | None = None,
+    seed_individuals: list[str] | None = None,
     **kwargs: Any,
 ) -> list[dict]:
     """Run a full GP evolution loop and return top-k candidates.
@@ -141,13 +144,17 @@ def run_evolution(
     if mock_mode:
         toolbox.register("evaluate", _mock_evaluate, pset=pset)
     else:
+        # Use explicitly provided data_arrays and forward_returns_2d
+        _data_arrays = data_arrays
+        _fwd_returns = forward_returns_2d
+
         def _evaluate(ind):
             expr_str = individual_to_expression(ind)
             try:
                 fitness, _ = evaluate_expression(
                     expr_str,
-                    data_arrays=kwargs.get("data_arrays"),
-                    forward_returns_2d=kwargs.get("forward_returns_2d"),
+                    data_arrays=_data_arrays,
+                    forward_returns_2d=_fwd_returns,
                 )
             except Exception:
                 fitness = -999.0
@@ -168,6 +175,23 @@ def run_evolution(
 
     # Run evolution
     pop = toolbox.population(n=population_size)
+
+    # Inject seed individuals if provided (from template search results)
+    if seed_individuals:
+        from deap import gp as deap_gp
+        seed_count = 0
+        for expr_str in seed_individuals:
+            try:
+                # Parse expression string into a DEAP individual
+                tree = deap_gp.PrimitiveTree.from_string(expr_str, pset)
+                ind = creator.Individual(tree)
+                # Replace worst individuals with seeds
+                if seed_count < len(pop):
+                    pop[-(seed_count + 1)] = ind
+                    seed_count += 1
+            except Exception:
+                continue
+
     algorithms.eaSimple(
         pop,
         toolbox,

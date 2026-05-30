@@ -1,0 +1,13 @@
+{
+  "change": "factor-mining-mvp",
+  "phase": "design",
+  "mode": "compact",
+  "canonical_spec": "openspec",
+  "generated_by": "comet-handoff.sh",
+  "context_hash": "e9526f9c7fe45244c58578271430335f93dc35b1482f4145d0b7105776c4e713",
+  "files": [
+    { "path": "openspec/changes/factor-mining-mvp/proposal.md", "sha256": "d2f1e3fa083a68d329d40da4666bf67234d5782748a982500b08f72f83c6b58a" },
+    { "path": "openspec/changes/factor-mining-mvp/design.md", "sha256": "ec7f5aeba4eff64e721724538bd9af68cbbcd2521b09ae94a97ba50f23d51b0c" },
+    { "path": "openspec/changes/factor-mining-mvp/tasks.md", "sha256": "176ff1b6dfba92d855f93cf40d376ec30907512642167a32f60a3af651fa539c" }
+  ]
+}
