@@ -1,9 +1,10 @@
-"""Data fetcher: connects to qlib-server via MCP to fetch OHLCV data.
+"""Data fetcher: fetch OHLCV data for stock pools.
 
-Provides async functions to:
-- Fetch OHLCV data via MCP qlib_get_data tool
-- Pivot records to (T, N) numpy arrays
-- Compute forward returns
+Two data paths:
+1. Qlib universe (e.g., csi300) via qlib-server MCP
+2. Custom stock list (e.g., industry pool from stock-pool skill) via AKShare MCP
+
+Both output aligned (T, N) numpy arrays for factor evaluation.
 """
 
 from __future__ import annotations
@@ -19,6 +20,7 @@ QLIB_SERVER_URL = "http://localhost:8003/mcp"
 STORE_SERVER_URL = "http://localhost:8002/mcp"
 
 DEFAULT_FIELDS = ["$close", "$open", "$high", "$low", "$volume", "$amount"]
+POOL_FIELDS = ["$close", "$open", "$high", "$low", "$volume"]  # fields for pool-based fetching
 
 
 def _records_to_arrays(
@@ -127,6 +129,117 @@ def compute_forward_returns(
         return fwd
     fwd[:T - horizon] = close_2d[horizon:] / close_2d[:T - horizon] - 1.0
     return fwd
+
+
+async def fetch_pool_data(
+    codes: list[str],
+    start_date: str = "2024-01-01",
+    end_date: str = "2025-12-31",
+    fields: list[str] | None = None,
+) -> tuple[dict[str, np.ndarray], list[str], list[str]]:
+    """Fetch OHLCV data for a custom list of stock codes via AKShare MCP.
+
+    Used by factor-mining when the target is a specific industry pool
+    (e.g., stocks from stock-pool skill) rather than a Qlib universe.
+
+    Args:
+        codes: Stock codes like ["300124.SZ", "002472.SZ"].
+        start_date: Start date "YYYY-MM-DD".
+        end_date: End date "YYYY-MM-DD".
+        fields: Data fields to fetch (without $ prefix internally).
+
+    Returns:
+        (data_arrays, dates, instruments) where data_arrays maps field→ndarray(T,N).
+    """
+    if fields is None:
+        fields = POOL_FIELDS
+
+    import asyncio
+    import json
+
+    AKSHARE_SERVER_URL = "http://localhost:8000/mcp"
+
+    # Strip $ prefix for field names used in pivot columns
+    field_names = [f.lstrip("$") for f in fields]
+
+    all_records = []
+    async with streamablehttp_client(AKSHARE_SERVER_URL) as (read, write, _):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            for code in codes:
+                try:
+                    result = await session.call_tool(
+                        "stock_zh_a_hist",
+                        {
+                            "symbol": code,
+                            "period": "daily",
+                            "start_date": start_date.replace("-", ""),
+                            "end_date": end_date.replace("-", ""),
+                            "adjust": "qfq",
+                        },
+                    )
+                    records = _extract_records(result)
+                    for rec in records:
+                        rec["instrument"] = code
+                    all_records.extend(records)
+                except Exception:
+                    continue
+
+    if not all_records:
+        raise ValueError(f"No data records returned for {len(codes)} stocks")
+
+    df = pd.DataFrame(all_records)
+    date_col = "日期" if "日期" in df.columns else "datetime"
+    if date_col == "日期":
+        df = df.rename(columns={"日期": "datetime"})
+        date_col = "datetime"
+
+    # Map AKShare column names to standard field names
+    col_map = {"开盘": "open", "收盘": "close", "最高": "high", "最低": "low", "成交量": "volume"}
+    df = df.rename(columns=col_map)
+
+    df[date_col] = pd.to_datetime(df[date_col])
+    df = df.sort_values([date_col, "instrument"])
+
+    dates = sorted(df[date_col].unique())
+    instruments = sorted(df["instrument"].unique())
+
+    data_arrays = {}
+    for fname in field_names:
+        if fname not in df.columns:
+            continue
+        pivot = df.pivot(index=date_col, columns="instrument", values=fname)
+        pivot = pivot.reindex(index=dates, columns=instruments)
+        pivot = pivot.replace("NaN", np.nan)
+        pivot = pd.to_numeric(pivot, errors="coerce")
+        # Store with $ prefix to match template field names
+        data_arrays[f"${fname}"] = pivot.values
+
+    return data_arrays, [str(d.date()) for d in pd.to_datetime(dates)], instruments
+
+
+def fetch_pool_data_sync(
+    codes: list[str],
+    start_date: str = "2024-01-01",
+    end_date: str = "2025-12-31",
+    fields: list[str] | None = None,
+) -> tuple[dict[str, np.ndarray], list[str], list[str]]:
+    """Synchronous wrapper for fetch_pool_data."""
+    import asyncio
+
+    return asyncio.run(fetch_pool_data(codes, start_date, end_date, fields))
+
+
+def fetch_ohlcv_sync(
+    universe: str = "csi300",
+    start_date: str = "2020-01-01",
+    end_date: str = "2024-12-31",
+    fields: list[str] | None = None,
+) -> tuple[dict[str, np.ndarray], list[str], list[str]]:
+    """Synchronous wrapper for fetch_ohlcv."""
+    import asyncio
+
+    return asyncio.run(fetch_ohlcv(universe, start_date, end_date, fields))
 
 
 async def register_factor_via_mcp(params: dict) -> dict:

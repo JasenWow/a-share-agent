@@ -40,12 +40,15 @@ def validate_mining_direction(direction: dict[str, Any]) -> tuple[bool, str]:
 
 def mine_factors(
     mining_direction: dict[str, Any],
+    data_arrays: dict | None = None,
+    forward_returns_2d: np.ndarray | None = None,
     mock_mode: bool = False,
     generations: int = 10,
     population_size: int = 100,
     max_depth: int = 4,
     top_k: int = 10,
     seed: int | None = None,
+    seed_individuals: list[str] | None = None,
     **kwargs: Any,
 ) -> list[dict]:
     """Run the factor mining loop.
@@ -81,25 +84,49 @@ def mine_factors(
         top_k=top_k,
         mock_mode=mock_mode,
         seed=seed,
+        data_arrays=data_arrays,
+        forward_returns_2d=forward_returns_2d,
+        seed_individuals=seed_individuals,
         **kwargs,
     )
 
-    # Enrich with metadata
+    # Enrich with metadata — extract real metrics from evaluation
     enriched = []
     for candidate in candidates:
         expr = candidate["expression"]
         fitness = candidate["fitness"]
 
+        # Re-evaluate to get detailed metrics if data is available
+        metrics = {"ic": 0.0, "icir": 0.0, "turnover": 0.0}
+        if data_arrays is not None and forward_returns_2d is not None and not mock_mode:
+            try:
+                from fitness import evaluate_expression
+                _, detail = evaluate_expression(
+                    expr,
+                    data_arrays=data_arrays,
+                    forward_returns_2d=forward_returns_2d,
+                )
+                metrics = {
+                    "ic": detail.get("ic", 0.0),
+                    "icir": detail.get("icir", 0.0),
+                    "turnover": detail.get("turnover", 0.0),
+                }
+            except Exception:
+                pass
+
         params = build_register_params(
             expression=expr,
             fitness=fitness,
-            metrics={"ic": 0.0, "icir": 0.0, "turnover": 0.0},
+            metrics=metrics,
             mining_direction=mining_direction,
         )
 
         enriched.append({
             "expression": expr,
             "fitness": fitness,
+            "ic": metrics["ic"],
+            "icir": metrics["icir"],
+            "turnover": metrics["turnover"],
             "name": params["name"],
             "hash": params["hash"],
             "register_params": params,

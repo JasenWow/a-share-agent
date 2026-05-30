@@ -1,36 +1,44 @@
 ---
 name: factor-mining
 description: |
-  Automatic factor discovery using LLM-directed GP evolution.
-  LLM generates directional hypotheses, DEAP evolves factor expressions,
-  Qlib evaluates candidates. Validated factors stored in shared factor library.
+  Industry-driven factor mining: discover effective quantitative signals for
+  a specific industry stock pool, rank stocks, and evaluate portfolios.
 
   Triggers: "挖掘因子", "mine factors", "factor mining", "自动因子发现",
-  "discover alpha", "find new factors"
+  "discover alpha", "find new factors", "因子挖掘", "产业选股"
 ---
 
-# Factor Mining
+# Factor Mining — 产业驱动的量化选股
 
 ## Overview
 
-Automatically discovers new factor formulas through genetic programming.
-LLM provides directional hypotheses (which operators + data to focus on),
-DEAP evolves concrete expressions, Qlib evaluates fitness via IC/ICIR.
+Two core scenarios:
 
-**Core Philosophy:** "LLM directs, GP searches, data validates."
+1. **产业选股**: On a specific industry stock pool, automatically discover
+   what quantitative signals best predict outperformance, then rank stocks.
+2. **持仓评估**: Score user's holdings using industry-specific factors,
+   diagnose health and concentration risk.
+
+**Core Philosophy:** "Not universal factor mining — discover what works for *this* industry."
 
 ---
 
 ## Input
 
+### Mining Mode
+
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| hypothesis | str | Yes | LLM-generated directional hypothesis |
-| operators | list[str] | Yes | Operator names to include in GP search space |
-| data_fields | list[str] | Yes | Data fields available as GP terminals |
-| universe | str | Yes | Stock universe for evaluation |
-| period | str | Yes | Evaluation period "YYYY-MM-DD to YYYY-MM-DD" |
-| constraints | dict | No | GP parameters: max_depth, population, generations, top_k |
+| codes | list[str] | Yes | Stock codes for the pool (from stock-pool skill) |
+| direction | str | Yes | Preset direction: 低波动/动量趋势/量价关系/均值回归/综合探索 |
+| start_date | str | No | Historical start date (default: 1 year ago) |
+| end_date | str | No | Historical end date (default: today) |
+
+### Evaluation Mode
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| holdings | list[dict] | Yes | List of {code, shares/weight} |
 
 ---
 
@@ -38,83 +46,143 @@ DEAP evolves concrete expressions, Qlib evaluates fitness via IC/ICIR.
 
 | Tool | Purpose |
 |------|---------|
-| `mcp__qlib__qlib_eval_expression` | Evaluate candidate factor expressions |
-| `mcp__qlib__qlib_list_operators` | List available operators |
-| `mcp__qlib__qlib_get_universe` | Get stock universe codes |
-| `mcp__internal-store__register_factor` | Register validated factors |
-| `mcp__internal-store__list_factors` | Check for duplicate factors |
+| AKShare MCP (8000) | OHLCV data for custom stock pools |
+| Tushare MCP (8001) | Supplementary data |
+| Internal-store MCP (8002) | Factor library (register, list, deprecate) |
+| Qlib MCP (8003) | Universe-based data (fallback) |
 
 ---
 
 ## Workflow
 
-### Step 1: Validate MiningDirection
+### Mining Mode
 
-Check all required fields are present and non-empty.
+#### Step 1: Receive Stock Pool + Direction
 
-### Step 2: Run GP Evolution
+- Stock pool comes from stock-pool skill or user input
+- User selects direction (or provides natural language description)
+- System maps direction to search parameters (fields, operators, windows)
 
-Execute `mine_factors.py` with the MiningDirection:
-- DEAP evolves expression trees using selected operators + data fields
-- Fitness = 0.6 * ICIR + 0.2 * mean_IC - 0.2 * turnover
-- Returns top-k candidates ranked by fitness
+#### Step 2: Fetch Data
 
-### Step 3: Evaluate Top Candidates
+- Fetch daily OHLCV for all stocks in the pool via AKShare/Tushare MCP
+- Align to (T, N) ndarray format
+- Compute forward returns
 
-For each candidate expression:
-1. Call `qlib_eval_expression` to get factor values
-2. Compute Rank IC series against forward returns
-3. Calculate IC, ICIR, turnover
+#### Step 3: Template Search (Layer 2)
 
-### Step 4: Full Validation via factor-research
+- Enumerate all factor template × field × window combinations
+- Evaluate each candidate's IC/ICIR on the pool's historical data
+- Keep top-N candidates (default 20)
 
-Send top candidates to `factor-research` skill for:
-- Walk-Forward validation
-- Factor scorecard (IC > 0.03, ICIR > 0.5, turnover < 50%, etc.)
+Templates by category:
+- **Trend**: price/MA ratio, normalized momentum
+- **Momentum**: absolute momentum, up-day fraction
+- **Volatility**: low volatility, volatility-adjusted level
+- **Volume-Price**: price-volume correlation, price-to-volume ratio
+- **Mean Reversion**: z-score reversion, deviation reversal
+- **Strength**: distance from high, distance from low
 
-### Step 5: Register to Factor Library
+#### Step 4: GP Refinement (Layer 3)
 
-Call `register_factor` for candidates that pass the scorecard.
+- Use top template results as seed population
+- DEAP genetic programming evolves around seeds
+- Crossover + mutation explores nearby expressions
+- Returns refined factors with better fitness
+
+#### Step 5: Register Factors
+
+- Register validated factors (IC > 0.02, ICIR > 0) to factor_library
+- Record: expression, IC, ICIR, turnover, industry, date
+
+#### Step 6: Rank Stocks + Generate Report
+
+- Score each stock using discovered factors (weighted by ICIR)
+- Classify signals: 强势延续 / 信号转强 / 强势但转弱 / 弱势
+- Output Markdown ranking report
+
+### Evaluation Mode
+
+#### Step 1: Receive Holdings
+
+- User provides stock code list
+
+#### Step 2: Score Holdings
+
+- Load active factors for relevant industries
+- Score each holding using factor values
+- Assess: health (strong/healthy/weakening/recovering/weak)
+
+#### Step 3: Portfolio Diagnostics
+
+- Concentration risk
+- Average score
+- Signal distribution
+
+#### Step 4: Generate Report
+
+- Per-holding details table
+- Portfolio-level diagnostics
+- Factor context
 
 ---
 
 ## Output
 
-```json
-{
-  "direction": "低波动环境下盈利动量增强",
-  "candidates_evaluated": 500,
-  "top_candidates": [
-    {
-      "expression": "Rank(Ts_Mean($close/$earnings, 20) / Ts_Std($close, 60))",
-      "ic": 0.042,
-      "icir": 0.68,
-      "turnover": 0.35,
-      "registered": true
-    }
-  ],
-  "registered_count": 3,
-  "total_in_library": 15
-}
+### Mining Report (Markdown)
+
+```markdown
+# 产业因子挖掘报告
+
+**方向:** 动量趋势
+**标的池:** 42 只股票
+
+## 因子列表 (Top 10)
+| # | 因子表达式 | IC | ICIR | 换手率 | 适应度 |
+...
+
+## 标的排名
+| 排名 | 代码 | 综合评分 | 动量信号 | 信号分类 |
+...
+
+### 🔥 近期强势
+- 300124.SZ — 评分 1.234
+
+### 📈 信号转强（关注）
+- 002472.SZ — 动量 0.456
+```
+
+### Portfolio Report (Markdown)
+
+```markdown
+# 持仓评估报告
+
+## 组合诊断
+- 平均评分: 0.345
+- 集中度: 适中
+
+## 持仓详情
+| 代码 | 排名 | 综合评分 | 健康度 |
+...
 ```
 
 ---
 
 ## Guardrails
 
-1. **Always validate MiningDirection** before running GP
-2. **Never register a factor without full validation** (IC/ICIR + Walk-Forward)
-3. **Always check for duplicates** before registering
-4. **Respect max_depth** -- deeper trees overfit
-5. **Use point-in-time data only** -- no look-ahead bias
+1. **Small sample awareness** — industry pools may have 20-80 stocks; use lower IC thresholds (0.02 vs 0.03)
+2. **Never use future data** — forward returns are point-in-time
+3. **Factor lifecycle** — track IC over time, deprecate stale factors
+4. **Report disclaimer** — all reports state "not investment advice"
+5. **Data source priority** — AKShare > Tushare > user-provided; never web search
 
 ---
 
 ## Quality Checklist
 
-- [ ] MiningDirection has all required fields
-- [ ] GP evolution completed within constraints
-- [ ] Top candidates have IC > 0.03 and ICIR > 0.5
-- [ ] Walk-Forward validation passed
-- [ ] No duplicate expressions in factor library
-- [ ] Factor registered with full metrics
+- [ ] Stock pool has at least 10 stocks
+- [ ] Historical data covers at least 250 trading days
+- [ ] Template search completed with meaningful IC results
+- [ ] GP refinement did not crash (fallback to template-only is OK)
+- [ ] Top factors registered to factor_library
+- [ ] Ranking report generated with signal classification
