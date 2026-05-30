@@ -1,0 +1,28 @@
+{
+  "_comment": "Tushare + THS concept ID mapping by theme. Pre-fetched from THS.",
+  "_sources": ["akshare.stock_board_concept_name_ths (THS)", "akshare.stock_board_industry_name_ths (THS)"],
+  "PCB": {
+    "concept_ids": ["308832"],
+    "concept_name": "PCB概念",
+    "note": "THS code 308832"
+  },
+  "机器人": {
+    "concept_ids": ["300816", "309119"],
+    "concept_name": "机器人概念, 人形机器人",
+    "note": "THS codes: 300816 (机器人概念), 309119 (人形机器人)"
+  },
+  "AI算力": {
+    "concept_ids": ["308828", "308642", "309068"],
+    "concept_name": "东数西算(算力), 数据中心, 算力租赁",
+    "note": "THS codes: 308828, 308642, 309068"
+  },
+  "光模块": {
+    "concept_ids": [],
+    "note": "TBD"
+  },
+  "半导体": {
+    "industry_ids": ["881121"],
+    "industry_name": "半导体",
+    "note": "THS industry code 881121"
+  }
+}

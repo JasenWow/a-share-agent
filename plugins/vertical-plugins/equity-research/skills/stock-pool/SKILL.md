@@ -61,23 +61,27 @@ description: |
 
 ## Step 2: Stock Discovery + Scorecard Screening
 
-### 2.1 多渠道标的发现（并行执行）
+### 2.1 多渠道标的发现（顺序执行，避免 rate limit）
 
-| Channel | MCP Tool | Description |
-|---------|----------|-------------|
-| 概念板块成分股 | `akshare.stock_board_concept_cons` | 拉取相关概念板块成员 |
-| 财报关键词 | `tushare.income` + `tushare.fina_indicator` | 筛选主营描述含主题关键词的公司 |
+| Channel | Source | Description |
+|---------|--------|-------------|
+| THS 概念板块 | `scripts/discover_concept_stocks.py` | 爬取 10jqka.com.cn 概念板块成分股 |
+| 财报关键词 | `akshare.stock_financial_report_sina` | 筛选主营描述含主题关键词的公司 |
 | 价值链扩展 | Step 1 输出 | 从已识别的上下游公司扩展 |
 
-**去重** — 合并三个渠道的结果，按 code 去重。
+**去重** — 合并各渠道结果，按 code 去重。
+
+**注意：** Eastmoney APIs (`stock_board_concept_cons_em`) 全天不稳定，若 MCP 调用失败，改用 `scripts/discover_concept_stocks.py` 的 THS 爬虫通道。
 
 ### 2.2 数据预取
 
-对每只候选股票，通过 MCP 工具获取以下数据：
-- `akshare.stock_zh_a_spot` — ST 状态、实时行情
-- `akshare.stock_zh_a_hist` — 近 20 日成交额（计算日均）
-- `tushare.fina_indicator` — PE_TTM、PE 历史分位
-- Step 1 标注的 revenue_share_pct
+对每只候选股票，通过以下方式获取数据：
+- **实时行情** — `akshare.stock_zh_a_spot_em` 或腾讯 `qt.gtimg.cn` fallback
+- **20 日成交额** — `akshare.stock_zh_a_hist` + `(成交量 × 最新价)` 估算
+- **PE_TTM** — 腾讯行情数据 `f39` 字段
+- **营收占比** — 来自 Step 1 标注；若未标注则默认 0%（concept 类需人工确认）
+
+> **Tushare rate limit 警告：** `concept_detail` 和 `fina_indicator` 限频 1次/分钟，避免批量调用。
 
 将所有数据汇总为一个候选 JSON 文件，格式如下：
 
@@ -142,6 +146,53 @@ uv run python plugins/vertical-plugins/equity-research/skills/stock-pool/scripts
 - `strategy`: Step 1 价值链 JSON
 - `params`: 筛选参数（min_liquidity, pe_percentile_cap）
 - `result`: scorecard 输出 JSON
+
+---
+
+## Workflow
+
+### Step 1: Theme Definition (Agent-driven, no script)
+
+Agent analyzes the user-specified theme using domain knowledge and MCP data:
+1. Break theme into 3-6 value chain stages with value density labels
+2. Identify 2-5 key companies per stage, tag as `pure_play`/`concept`/`second_order`
+3. Summarize market landscape (TAM, growth rate, top players)
+4. **Confirmation gate:** present value chain JSON to user, proceed only after approval
+
+Output: JSON per `references/value-chain-template.md`.
+
+### Step 2: Stock Discovery + Scorecard Screening
+
+**Parallel discovery:**
+1. `akshare.stock_board_concept_cons` — pull concept board members
+2. `tushare.income` + `tushare.fina_indicator` — filter by revenue keywords
+3. Value chain extension from Step 1
+
+**Data fetching per candidate:**
+- `akshare.stock_zh_a_spot` — ST status, price, PE
+- `akshare.stock_zh_a_hist` — 20-day avg turnover
+- `tushare.fina_indicator` — PE_TTM, historical percentile
+
+**Scorecard filtering** (calls `scripts/scorecard.py`):
+```bash
+uv run python plugins/.../stock-pool/scripts/scorecard.py \
+  --input ./out/pool_candidates_{theme}.json \
+  --output ./out/stock-pool-{theme}-{date}.json \
+  --min-liquidity 50000000 --pe-percentile-cap 95
+```
+
+**Final output:** Markdown table + JSON file + internal-store record.
+
+---
+
+## Guardrails
+
+1. **Never skip A-share exclusion rules** — ST, suspended, <1yr listed, delisted stocks must be filtered before any other logic
+2. **Never use web search for financial data** — use only MCP data sources with audit trail
+3. **Confirmation gate required before Step 2** — value chain analysis must be approved by user
+4. **Do not modify scorecard thresholds without user confirmation** — defaults are 50M liquidity / 95th PE percentile
+5. **Scorecard script has no network calls** — it only reads pre-fetched JSON, data must be collected via MCP first
+6. **revenue_share_pct is required for concept stocks** — pure_play exception applies only if type is explicitly marked
 
 ---
 
