@@ -88,6 +88,30 @@ def compute_turnover(factor_ranks_2d: np.ndarray) -> float:
     return 1.0 - corr_sum / count
 
 
+def is_significant(ic_series: np.ndarray, min_periods: int = 20) -> bool:
+    """Test if a factor's IC is statistically significant.
+
+    Uses t-test: |t| > 2 (approximately 5% significance level).
+
+    Args:
+        ic_series: Per-period IC values (may contain NaN).
+        min_periods: Minimum number of valid IC periods required.
+
+    Returns:
+        True if the factor passes significance test.
+    """
+    ic_series = np.asarray(ic_series, dtype=float)
+    clean = ic_series[~np.isnan(ic_series)]
+    if len(clean) < min_periods:
+        return False
+    mean_ic = float(np.mean(clean))
+    std_ic = float(np.std(clean))
+    if std_ic < 1e-12:
+        return False
+    t_stat = mean_ic / (std_ic / np.sqrt(len(clean)))
+    return abs(t_stat) > 2.0
+
+
 def compute_fitness(ic_series: np.ndarray, turnover: float = 0.0) -> float:
     """Compute composite fitness score.
 
@@ -172,12 +196,16 @@ def evaluate_expression(
     std_ic = float(np.std(ic_clean)) if len(ic_clean) > 1 else 0.0
     icir = mean_ic / std_ic if std_ic > 1e-12 else 0.0
 
+    t_stat = float(mean_ic / (std_ic / np.sqrt(len(ic_clean)))) if std_ic > 1e-12 and len(ic_clean) > 0 else 0.0
+
     metrics = {
         "ic": mean_ic,
         "ic_std": std_ic,
         "icir": icir,
         "turnover": turnover,
         "n_periods": factor_values.shape[0],
+        "t_stat": t_stat,
+        "is_significant": abs(t_stat) > 2.0,
     }
 
     return fitness, metrics

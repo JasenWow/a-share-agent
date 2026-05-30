@@ -52,11 +52,37 @@ def rank_stocks(
     total_weight = 0.0
     factor_details = []
 
+    total_non_vol_weight = 0.0
+    factor_meta = []  # (expr, weight, is_vol_only)
+
+    # First pass: compute raw weights and identify volume factors
     for factor in factors:
         expr = factor["expression"]
+        raw_weight = abs(factor.get("icir", 0.0))
+        if raw_weight < 1e-6:
+            continue
+        is_vol_only = "$volume" in expr and "$close" not in expr
+        if not is_vol_only:
+            total_non_vol_weight += raw_weight
+        factor_meta.append((expr, raw_weight, is_vol_only))
+
+    # Cap volume factor weights at 30% of non-volume weight
+    max_vol_weight = 0.3 * total_non_vol_weight if total_non_vol_weight > 0 else 0.0
+
+    for factor in factors:
+        expr = factor["expression"]
+        ic = factor.get("ic", 0.0)
         weight = abs(factor.get("icir", 0.0))
         if weight < 1e-6:
             continue
+
+        # Direction: flip for negative-IC factors
+        sign = 1.0 if ic >= 0 else -1.0
+
+        # Volume factor weight cap
+        is_vol_only = "$volume" in expr and "$close" not in expr
+        if is_vol_only and max_vol_weight > 0:
+            weight = min(weight, max_vol_weight)
 
         try:
             values = evaluate_expression_vec(expr, data_arrays)
@@ -93,7 +119,7 @@ def rank_stocks(
             else:
                 delta = np.zeros(N)
 
-            composite += weight * zscore
+            composite += weight * sign * zscore
             momentum += weight * delta
             total_weight += weight
 
@@ -126,13 +152,18 @@ def rank_stocks(
     for rank, r in enumerate(results, 1):
         r["rank"] = rank
 
-    # Classify signals
+    # Classify signals using percentile-based thresholds
+    all_scores = [r["composite_score"] for r in results]
+    all_momentum = [r["momentum_score"] for r in results]
+    score_p75 = np.percentile(all_scores, 75) if len(all_scores) >= 4 else np.mean(all_scores)
+    mom_median = np.median(all_momentum) if len(all_momentum) >= 2 else 0.0
+
     for r in results:
-        if r["composite_score"] > 0.5 and r["momentum_score"] > 0:
+        if r["composite_score"] > score_p75 and r["momentum_score"] > mom_median:
             r["signal"] = "强势延续"  # Strong and getting stronger
-        elif r["composite_score"] > 0.5 and r["momentum_score"] <= 0:
+        elif r["composite_score"] > score_p75 and r["momentum_score"] <= mom_median:
             r["signal"] = "强势但转弱"  # Strong but fading
-        elif r["composite_score"] <= 0.5 and r["momentum_score"] > 0.2:
+        elif r["composite_score"] <= score_p75 and r["momentum_score"] > mom_median + 0.2:
             r["signal"] = "信号转强"  # Not strong yet but accelerating
         else:
             r["signal"] = "弱势"

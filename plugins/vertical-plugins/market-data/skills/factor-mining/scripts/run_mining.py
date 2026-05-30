@@ -87,26 +87,28 @@ def run_mining_pipeline(
     min_ic: float = 0.02,
     seed: int | None = None,
     skip_gp: bool = False,
+    test_ratio: float = 0.3,
+    top_n: int = 5,
+    rebalance_days: int = 5,
+    commission: float = 0.003,
 ) -> dict[str, Any]:
     """Run the full factor mining pipeline on a stock pool.
 
+    Includes train/test split, OOS validation, and backtest.
+
     Args:
-        codes: Stock codes for the pool (e.g., ["300124.SZ", "002472.SZ"]).
+        codes: Stock codes for the pool.
         direction: Preset direction name (key in DIRECTIONS).
         start_date: Historical data start date.
         end_date: Historical data end date. Defaults to today.
         top_k_templates: Number of top template candidates to keep.
-        top_k_gp: Number of top GP candidates to return.
-        gp_generations: Number of GP evolution generations.
-        gp_population: GP population size.
-        gp_max_depth: Max GP expression tree depth.
-        forward_horizon: Forward return horizon in days.
-        min_ic: Minimum absolute IC to consider valid.
-        seed: Random seed for reproducibility.
-        skip_gp: If True, skip Layer 3 GP refinement.
+        test_ratio: Fraction of data reserved for out-of-sample testing.
+        top_n: Number of top-ranked stocks to hold in backtest.
+        rebalance_days: Rebalance frequency in trading days.
+        commission: Single-side commission rate.
 
     Returns:
-        Dict with pipeline results including factors and metadata.
+        Dict with pipeline results including factors, validation, and backtest.
     """
     if end_date is None:
         end_date = date.today().isoformat()
@@ -131,19 +133,27 @@ def run_mining_pipeline(
     )
     print(f"[Pipeline]   Got {len(dates)} trading days, {len(instruments)} instruments")
 
-    # Get close prices for forward returns
-    close_key = "$close"
+    # Get close prices
+    close_key = "$close" if "$close" in data_arrays else "close"
     if close_key not in data_arrays:
-        # Try without $ prefix
-        close_key = "close"
-    if close_key not in data_arrays:
-        raise ValueError("Close price data not available in fetched data")
+        raise ValueError("Close price data not available")
 
-    forward_returns = compute_forward_returns(data_arrays[close_key], horizon=forward_horizon)
+    # --- Train/Test Split ---
+    T_total = len(dates)
+    split_idx = int(T_total * (1 - test_ratio))
+    print(f"[Pipeline]   Train: {dates[0]} ~ {dates[split_idx-1]} ({split_idx} days)")
+    print(f"[Pipeline]   Test:  {dates[split_idx]} ~ {dates[-1]} ({T_total - split_idx} days)")
+
+    # Split data arrays
+    train_arrays = {k: v[:split_idx] for k, v in data_arrays.items()}
+    test_arrays = {k: v[split_idx:] for k, v in data_arrays.items()}
+
+    # Forward returns for train
+    forward_returns = compute_forward_returns(train_arrays[close_key], horizon=forward_horizon)
     print(f"[Pipeline]   Forward returns horizon: {forward_horizon} days")
 
-    # Step 2: Template search (Layer 2)
-    print("[Pipeline] Step 2: Template search...")
+    # Step 2: Template search (train set only)
+    print("[Pipeline] Step 2: Template search (train set)...")
     candidates = enumerate_candidates(
         templates=TEMPLATES,
         fields=fields,
@@ -154,7 +164,7 @@ def run_mining_pipeline(
 
     template_results = template_search(
         candidates=candidates,
-        data_arrays=data_arrays,
+        data_arrays=train_arrays,
         forward_returns=forward_returns,
         top_k=top_k_templates,
         min_ic=min_ic,
@@ -245,10 +255,58 @@ def run_mining_pipeline(
             seen.add(f["expression"])
             unique_factors.append(f)
 
-    # Sort by fitness
-    unique_factors.sort(key=lambda x: x["fitness"], reverse=True)
+    # --- OOS Validation (test set) ---
+    print(f"[Pipeline] Step 4: OOS validation ({len(unique_factors)} candidates)...")
+    test_fwd = compute_forward_returns(test_arrays[close_key], horizon=forward_horizon)
 
-    print(f"[Pipeline] Done: {len(unique_factors)} unique factors discovered")
+    validated_factors = []
+    for f in unique_factors:
+        try:
+            from fitness import evaluate_expression
+            _, test_metrics = evaluate_expression(
+                f["expression"],
+                data_arrays=test_arrays,
+                forward_returns_2d=test_fwd,
+            )
+            train_ic = f.get("ic", 0.0)
+            test_ic = test_metrics.get("ic", 0.0)
+            # Keep if test IC has same sign as train IC
+            if train_ic != 0 and np.sign(test_ic) == np.sign(train_ic):
+                f["test_ic"] = test_ic
+                f["test_icir"] = test_metrics.get("icir", 0.0)
+                f["test_t_stat"] = test_metrics.get("t_stat", 0.0)
+                f["train_ic"] = train_ic
+                f["train_icir"] = f.get("icir", 0.0)
+                f["train_t_stat"] = f.get("t_stat", 0.0)
+                validated_factors.append(f)
+        except Exception:
+            continue
+
+    print(f"[Pipeline]   {len(validated_factors)}/{len(unique_factors)} factors survived OOS validation")
+
+    # Sort by fitness
+    validated_factors.sort(key=lambda x: x["fitness"], reverse=True)
+
+    # --- Step 5: Backtest ---
+    print(f"[Pipeline] Step 5: Backtest (top-{top_n}, rebalance={rebalance_days}d, commission={commission*100:.1f}%)...")
+    from backtest import BacktestConfig, run_backtest as run_bt
+    bt_config = BacktestConfig(
+        top_n=top_n,
+        rebalance_days=rebalance_days,
+        commission=commission,
+    )
+    bt_result = run_bt(
+        factors=validated_factors[:top_k_templates],
+        data_arrays=data_arrays,
+        instruments=instruments,
+        config=bt_config,
+        test_start_idx=split_idx,
+    )
+    print(f"[Pipeline]   Backtest: ann_return={bt_result.metrics['annualized_return']*100:+.1f}% "
+          f"sharpe={bt_result.metrics['sharpe_ratio']:.2f} "
+          f"max_dd={bt_result.metrics['max_drawdown']*100:.1f}%")
+
+    print(f"[Pipeline] Done: {len(validated_factors)} validated factors")
 
     return {
         "direction": direction,
@@ -256,16 +314,22 @@ def run_mining_pipeline(
         "pool_size": len(codes),
         "period": f"{start_date} to {end_date}",
         "n_trading_days": len(dates),
+        "train_period": f"{dates[0]} ~ {dates[split_idx-1]}",
+        "test_period": f"{dates[split_idx]} ~ {dates[-1]}",
+        "split_idx": split_idx,
+        "total_factors_mined": len(unique_factors),
+        "factors": validated_factors,
+        "backtest": {
+            "metrics": bt_result.metrics,
+            "n_trades": len(bt_result.trades),
+            "equity_curve": bt_result.equity_curve,
+            "benchmark_curve": bt_result.benchmark_curve,
+            "rebalance_dates": bt_result.rebalance_dates,
+        },
         "template_results": [
             {k: v for k, v in r.items() if k in ("expression", "ic", "icir", "turnover", "fitness", "category")}
             for r in template_results
         ],
-        "gp_results": [
-            {k: v for k, v in r.items() if k in ("expression", "ic", "icir", "turnover", "fitness")}
-            for r in gp_results
-        ],
-        "total_factors": len(unique_factors),
-        "factors": unique_factors,
     }
 
 
@@ -287,6 +351,10 @@ def main():
     parser.add_argument("--skip-gp", action="store_true", help="Skip GP refinement")
     parser.add_argument("--seed", type=int, default=None, help="Random seed")
     parser.add_argument("--output", type=Path, default=None, help="Output JSON path")
+    parser.add_argument("--test-ratio", type=float, default=0.3, help="Test set ratio (default 0.3)")
+    parser.add_argument("--top-n", type=int, default=5, help="Backtest top-N holdings")
+    parser.add_argument("--rebalance", type=int, default=5, help="Rebalance frequency (days)")
+    parser.add_argument("--commission", type=float, default=0.003, help="Commission rate")
     args = parser.parse_args()
 
     # Resolve stock pool
@@ -308,26 +376,58 @@ def main():
         direction=args.direction,
         start_date=args.start_date,
         end_date=args.end_date,
-        top_k_gp=args.top_k,
-        gp_generations=args.gp_generations,
-        seed=args.seed,
+        top_k_templates=args.top_k,
         skip_gp=args.skip_gp,
+        seed=args.seed,
+        test_ratio=args.test_ratio,
+        top_n=args.top_n,
+        rebalance_days=args.rebalance,
+        commission=args.commission,
     )
 
     # Print summary
     print(f"\n{'='*60}")
     print(f"Factor Mining Report: {result['direction']}")
     print(f"Pool: {result['pool_size']} stocks | Period: {result['period']}")
+    print(f"Train: {result.get('train_period', '?')} | Test: {result.get('test_period', '?')}")
     print(f"{'='*60}")
     for i, f in enumerate(result["factors"][:10]):
-        print(f"  {i+1}. IC={f['ic']:.4f} ICIR={f['icir']:.4f} TO={f['turnover']:.2f}  [{f.get('source', '?')}]")
+        train_ic = f.get('train_ic', f.get('ic', 0))
+        test_ic = f.get('test_ic', 0)
+        sig = '✅' if f.get('is_significant', False) else '  '
+        print(f"  {i+1}. {sig} train_IC={train_ic:.4f} test_IC={test_ic:.4f}  [{f.get('source', '?')}]")
         print(f"     {f['expression']}")
+
+    # Backtest summary
+    bt = result.get("backtest", {})
+    if bt and bt.get("metrics"):
+        m = bt["metrics"]
+        print(f"\n{'='*60}")
+        print(f"Backtest (top-{args.top_n}, rebalance={args.rebalance}d)")
+        print(f"{'='*60}")
+        print(f"  Annualized Return: {m['annualized_return']*100:+.1f}%")
+        print(f"  Sharpe Ratio:      {m['sharpe_ratio']:.2f}")
+        print(f"  Max Drawdown:      {m['max_drawdown']*100:.1f}%")
+        print(f"  Win Rate:          {m['win_rate']*100:.1f}%")
+        print(f"  Excess Return:     {m['excess_return']*100:+.1f}%")
+        print(f"  Information Ratio: {m['information_ratio']:.2f}")
+        print(f"  Trades:            {bt['n_trades']}")
 
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         with open(args.output, "w") as fp:
-            json.dump(result, fp, ensure_ascii=False, indent=2, default=str)
+            json.dump(result, fp, ensure_ascii=False, indent=2, default=_json_default)
         print(f"\nResults saved to {args.output}")
+
+
+def _json_default(obj):
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    if isinstance(obj, (np.integer,)):
+        return int(obj)
+    if isinstance(obj, (np.floating,)):
+        return float(obj)
+    return str(obj)
 
 
 if __name__ == "__main__":

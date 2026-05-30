@@ -33,6 +33,10 @@ TEMPLATES: dict[str, list[str]] = {
         "Rank(Delta($X, {W}))",                          # absolute momentum
         "Rank(Ts_Sum(Sign(Delta($X, 1)), {W}))",        # fraction of up days
     ],
+    "price_momentum_raw": [
+        "($close / Delay($close, {W}) - 1)",            # raw N-day return (no Rank)
+        "($close - Ts_Min($close, {W})) / (Ts_Max($close, {W}) - Ts_Min($close, {W}) + 0.001)",  # price position
+    ],
     "volatility": [
         "Rank(-1 * Ts_Std($X, {W}))",                   # low volatility
         "Rank(Ts_Mean($X, {W1}) / Ts_Std($X, {W2}))",   # volatility-adjusted level
@@ -183,6 +187,8 @@ def evaluate_candidate(
         std_ic = float(np.std(ic_clean)) if len(ic_clean) > 1 else 0.0
         icir = mean_ic / std_ic if std_ic > 1e-12 else 0.0
 
+        t_stat = float(mean_ic / (std_ic / np.sqrt(len(ic_clean)))) if std_ic > 1e-12 and len(ic_clean) > 0 else 0.0
+
         return {
             "expression": expression,
             "ic": mean_ic,
@@ -190,6 +196,8 @@ def evaluate_candidate(
             "turnover": turnover,
             "fitness": fitness,
             "n_periods": len(ic_clean),
+            "t_stat": t_stat,
+            "is_significant": abs(t_stat) > 2.0,
         }
     except Exception:
         return {
@@ -199,6 +207,8 @@ def evaluate_candidate(
             "turnover": 0.0,
             "fitness": -999.0,
             "n_periods": 0,
+            "t_stat": 0.0,
+            "is_significant": False,
         }
 
 
@@ -230,8 +240,8 @@ def template_search(
         )
         result["category"] = cand["category"]
         result["template"] = cand["template"]
-        # Only keep results with meaningful IC
-        if abs(result["ic"]) >= min_ic and result["n_periods"] >= min_periods:
+        # Only keep results with meaningful IC AND statistical significance
+        if abs(result["ic"]) >= min_ic and result["n_periods"] >= min_periods and result["is_significant"]:
             results.append(result)
 
     results.sort(key=lambda r: r["fitness"], reverse=True)

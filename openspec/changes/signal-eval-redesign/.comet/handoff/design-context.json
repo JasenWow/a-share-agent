@@ -1,0 +1,13 @@
+{
+  "change": "signal-eval-redesign",
+  "phase": "design",
+  "mode": "compact",
+  "canonical_spec": "openspec",
+  "generated_by": "comet-handoff.sh",
+  "context_hash": "d55114d9316c4db9fe546d831c31d9ce8f3d61ddfd29828d57ee85551b603129",
+  "files": [
+    { "path": "openspec/changes/signal-eval-redesign/proposal.md", "sha256": "24d067d1116608800fc47fa9b07a62d49e95afa61ba7681b65284cb20e2b1f15" },
+    { "path": "openspec/changes/signal-eval-redesign/design.md", "sha256": "d565457849c6f579167dc1a019fecbedd9b2f1f4e7f4d5868f4b8d62ef82734c" },
+    { "path": "openspec/changes/signal-eval-redesign/tasks.md", "sha256": "613b04be6e6e0a7ec0f8291556ff5e062ca8586547161a57a122c1250955d269" }
+  ]
+}

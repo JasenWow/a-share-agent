@@ -9,6 +9,71 @@ from __future__ import annotations
 
 from datetime import date
 from typing import Any
+import numpy as np
+
+
+def _ascii_chart(
+    equity: np.ndarray,
+    benchmark: np.ndarray | None = None,
+    width: int = 60,
+    height: int = 12,
+) -> str:
+    """Generate ASCII equity curve chart."""
+    if len(equity) < 2:
+        return "(insufficient data)"
+
+    equity = np.asarray(equity, dtype=float)
+    if benchmark is not None:
+        benchmark = np.asarray(benchmark, dtype=float)
+
+    # Downsample to width points
+    indices = np.round(np.linspace(0, len(equity) - 1, min(width, len(equity)))).astype(int)
+    eq = equity[indices]
+    bm = benchmark[indices] if benchmark is not None else None
+
+    # Determine y range
+    all_vals = np.concatenate([eq] + ([bm] if bm is not None else []))
+    y_min = float(np.nanmin(all_vals))
+    y_max = float(np.nanmax(all_vals))
+    if y_max - y_min < 1e-6:
+        y_max = y_min + 0.01
+
+    canvas = [[' '] * width for _ in range(height)]
+
+    # Plot equity
+    for i, v in enumerate(eq):
+        if np.isnan(v):
+            continue
+        row = int((1 - (v - y_min) / (y_max - y_min)) * (height - 1))
+        row = max(0, min(height - 1, row))
+        canvas[row][i] = '█'
+
+    # Plot benchmark
+    if bm is not None:
+        for i, v in enumerate(bm):
+            if np.isnan(v):
+                continue
+            row = int((1 - (v - y_min) / (y_max - y_min)) * (height - 1))
+            row = max(0, min(height - 1, row))
+            if canvas[row][i] == ' ':
+                canvas[row][i] = '░'
+
+    # Build string with y-axis labels
+    result = []
+    for r in range(height):
+        val = y_max - (y_max - y_min) * r / (height - 1)
+        line = ''.join(canvas[r])
+        result.append(f"{val:5.2f} │{line}")
+
+    result.append(f"       └{'─' * width}")
+    result.append(f"        {eq[0]:.2f}                    →                    {eq[-1]:.2f}")
+
+    if benchmark is not None:
+        result.append(f"        █ = strategy  ░ = benchmark")
+    else:
+        result.append(f"        █ = equity")
+
+    return '\n'.join(result)
 
 
 def generate_mining_report(
@@ -32,24 +97,60 @@ def generate_mining_report(
     lines.append(f"**方向:** {mining_result['direction']} — {mining_result.get('direction_description', '')}")
     lines.append(f"**日期:** {date.today().isoformat()}")
     lines.append(f"**标的池:** {mining_result['pool_size']} 只股票")
-    lines.append(f"**回测期:** {mining_result['period']} ({mining_result.get('n_trading_days', '?')} 交易日)")
-    lines.append(f"**发现因子数:** {mining_result['total_factors']}")
+    lines.append(f"**训练期:** {mining_result.get('train_period', mining_result['period'])}")
+    lines.append(f"**测试期:** {mining_result.get('test_period', 'N/A')}")
+    lines.append(f"**发现因子数:** {mining_result.get('total_factors_mined', mining_result.get('total_factors', 0))} → 通过验证: {len(mining_result.get('factors', []))}")
     lines.append("")
 
-    # Top factors
+    # Top factors with train/test IC
     factors = mining_result.get("factors", [])
     if factors:
         lines.append("## 因子列表 (Top 10)")
         lines.append("")
-        lines.append("| # | 因子表达式 | IC | ICIR | 换手率 | 适应度 | 来源 |")
-        lines.append("|---|-----------|-----|------|--------|--------|------|")
+        lines.append("| # | 显著 | 因子表达式 | Train IC | Test IC | ICIR | t-stat | 来源 |")
+        lines.append("|---|------|-----------|----------|---------|------|--------|------|")
         for i, f in enumerate(factors[:10]):
-            expr = f["expression"][:60] + ("..." if len(f["expression"]) > 60 else "")
+            expr = f["expression"][:50] + ("..." if len(f["expression"]) > 50 else "")
+            train_ic = f.get('train_ic', f.get('ic', 0))
+            test_ic = f.get('test_ic', 0)
+            t_stat = f.get('train_t_stat', f.get('t_stat', 0))
+            sig = '✅' if f.get('is_significant', False) else '❌'
+            icir = f.get('train_icir', f.get('icir', 0))
             lines.append(
-                f"| {i+1} | `{expr}` | {f['ic']:.4f} | {f['icir']:.4f} "
-                f"| {f['turnover']:.2f} | {f['fitness']:.4f} | {f.get('source', '?')} |"
+                f"| {i+1} | {sig} | `{expr}` | {train_ic:.4f} | {test_ic:.4f} "
+                f"| {icir:.4f} | {t_stat:.2f} | {f.get('source', '?')} |"
             )
         lines.append("")
+
+    # Backtest results
+    bt = mining_result.get("backtest", {})
+    if bt and bt.get("metrics"):
+        m = bt["metrics"]
+        lines.append("## 回测绩效")
+        lines.append("")
+        lines.append(f"| 指标 | 策略 | 基准 |")
+        lines.append(f"|------|------|------|")
+        lines.append(f"| 年化收益 | {m['annualized_return']*100:+.1f}% | — |")
+        lines.append(f"| 夏普比率 | {m['sharpe_ratio']:.2f} | — |")
+        lines.append(f"| 最大回撤 | {m['max_drawdown']*100:.1f}% | — |")
+        lines.append(f"| Calmar比率 | {m['calmar_ratio']:.2f} | — |")
+        lines.append(f"| 胜率 | {m['win_rate']*100:.1f}% | — |")
+        lines.append(f"| 超额收益 | {m['excess_return']*100:+.1f}% | — |")
+        lines.append(f"| 信息比率 | {m['information_ratio']:.2f} | — |")
+        lines.append(f"| 交易次数 | {bt['n_trades']} | — |")
+        lines.append("")
+
+        # ASCII equity curve
+        eq = bt.get('equity_curve')
+        bm = bt.get('benchmark_curve')
+        if eq is not None and len(eq) > 10:
+            split_idx = mining_result.get('split_idx', 0)
+            lines.append("### 净值曲线 (测试期)")
+            lines.append("")
+            lines.append("```")
+            lines.append(_ascii_chart(eq[split_idx:], bm[split_idx:] if bm is not None else None))
+            lines.append("```")
+            lines.append("")
 
     # Stock ranking (if provided)
     if ranking_result:
