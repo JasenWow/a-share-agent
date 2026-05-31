@@ -1,3 +1,7 @@
+---
+archived-with: 2026-05-30-signal-eval-redesign
+status: final
+---
 # Tasks: signal-eval-redesign
 
 ## T1: metrics.py — 评估指标模块 ✅

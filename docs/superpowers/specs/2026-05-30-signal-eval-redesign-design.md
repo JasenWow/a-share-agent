@@ -2,6 +2,8 @@
 comet_change: signal-eval-redesign
 role: technical-design
 canonical_spec: openspec
+archived-with: 2026-05-30-signal-eval-redesign
+status: final
 ---
 
 # Design Doc: 因子挖掘完整评估体系

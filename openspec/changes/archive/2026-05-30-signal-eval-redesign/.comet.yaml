@@ -1,0 +1,18 @@
+workflow: full
+phase: archive
+build_mode: direct
+isolation: branch
+verify_mode: full
+base_ref: 2ca0cf5dc3616bfac44f35804e385451a53c876f
+design_doc: docs/superpowers/specs/2026-05-30-signal-eval-redesign-design.md
+plan: openspec/changes/signal-eval-redesign/tasks.md
+verify_result: pass
+verification_report: docs/superpowers/reports/2026-05-30-signal-eval-redesign-verify.md
+branch_status: handled
+created_at: 2026-05-30
+verified_at: 2026-05-30
+archived: true
+handoff_context: openspec/changes/signal-eval-redesign/.comet/handoff/design-context.json
+handoff_hash: d55114d9316c4db9fe546d831c31d9ce8f3d61ddfd29828d57ee85551b603129
+direct_override: true
+build_command: /opt/homebrew/Caskroom/miniconda/base/envs/py313/bin/uv run python3 -m pytest plugins/vertical-plugins/market-data/skills/factor-mining/ -q
