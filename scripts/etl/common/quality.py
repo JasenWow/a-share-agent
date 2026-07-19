@@ -4,6 +4,7 @@
 CheckFunc 返回 CheckResult（含 blocking 标志）。
 QualityReport 汇总所有结果，has_blocking() 用于决定是否阻断写入。
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -28,12 +29,14 @@ class QualityReport:
 
     def add(self, result: CheckResult) -> None:
         if not result.passed:
-            self.issues.append({
-                "check": result.check,
-                "passed": result.passed,
-                "blocking": result.blocking,
-                "message": result.message,
-            })
+            self.issues.append(
+                {
+                    "check": result.check,
+                    "passed": result.passed,
+                    "blocking": result.blocking,
+                    "message": result.message,
+                }
+            )
 
     def has_blocking(self) -> bool:
         return any(i["blocking"] for i in self.issues)
@@ -60,38 +63,49 @@ def run_checks(
 # 内置 check 工厂函数
 # --------------------------------------------------------------------------
 
+
 def min_row_count(threshold: int) -> CheckFunc:
     """行数 ≥ threshold，否则 blocking。"""
+
     def _check(rows: list[dict], date: str) -> CheckResult:
         n = len(rows)
         if n >= threshold:
             return CheckResult(True, False, f"rows={n} >= {threshold}", "min_row_count")
         return CheckResult(False, True, f"rows={n} < {threshold}", "min_row_count")
+
     return _check
 
 
 def no_null_in(fields: list[str]) -> CheckFunc:
     """指定字段不允许 null，否则 blocking。"""
+
     def _check(rows: list[dict], date: str) -> CheckResult:
         for f in fields:
             nulls = sum(1 for r in rows if r.get(f) is None)
             if nulls > 0:
                 return CheckResult(
-                    False, True,
-                    f"field '{f}' has {nulls} nulls", "no_null_in",
+                    False,
+                    True,
+                    f"field '{f}' has {nulls} nulls",
+                    "no_null_in",
                 )
         return CheckResult(True, False, "no nulls in required fields", "no_null_in")
+
     return _check
 
 
 def date_is(expected: str, field: str) -> CheckFunc:
     """指定字段值全部等于 expected，否则 blocking。"""
+
     def _check(rows: list[dict], date: str) -> CheckResult:
         bad = [r for r in rows if str(r.get(field, "")) != expected]
         if bad:
             return CheckResult(
-                False, True,
-                f"{len(bad)} rows have {field} != {expected}", "date_is",
+                False,
+                True,
+                f"{len(bad)} rows have {field} != {expected}",
+                "date_is",
             )
         return CheckResult(True, False, f"all rows {field}={expected}", "date_is")
+
     return _check

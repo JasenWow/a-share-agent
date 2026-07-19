@@ -6,6 +6,7 @@ Usage:
   uv run python -m scripts.etl.runner --priority P0 --date 20260717
   uv run python -m scripts.etl.runner --all --date 20260717
 """
+
 from __future__ import annotations
 
 import argparse
@@ -63,11 +64,13 @@ def _run_range(domain: str, start: str, end: str) -> list[dict]:
     """
     try:
         import exchange_calendars as xcals
+
         sess = xcals.get_calendar("XSHG")  # 上交所
         sessions = sess.sessions_in_range(start, end)
         dates = [s.strftime("%Y%m%d") for s in sessions]
     except ImportError:
         from datetime import datetime as dt, timedelta
+
         dates = []
         cur = dt.strptime(start, "%Y%m%d")
         end_dt = dt.strptime(end, "%Y%m%d")
@@ -83,48 +86,46 @@ def _write_log(reports: list[dict]) -> str:
     ensure_dirs()
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     log_path = LOGS_DIR / f"etl_{ts}.json"
-    log_path.write_text(
-        json.dumps({"reports": reports}, ensure_ascii=False, indent=2)
-    )
+    log_path.write_text(json.dumps({"reports": reports}, ensure_ascii=False, indent=2))
     return str(log_path)
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="ETL runner")
     parser.add_argument(
-        "domain", nargs="?", default=None,
+        "domain",
+        nargs="?",
+        default=None,
         help="single domain (e.g., equity_daily)",
     )
     parser.add_argument("--date", default=None, help="YYYYMMDD")
     parser.add_argument("--start", default=None, help="YYYYMMDD (range start)")
     parser.add_argument("--end", default=None, help="YYYYMMDD (range end)")
     parser.add_argument(
-        "--priority", default=None, choices=["P0", "P1", "P2"],
+        "--priority",
+        default=None,
+        choices=["P0", "P1", "P2"],
         help="run all domains of given priority",
     )
     parser.add_argument(
-        "--all", action="store_true",
+        "--all",
+        action="store_true",
         help="run all registered domains",
     )
     parser.add_argument(
-        "--direct-sdk", action="store_true",
-        help="(reserved) bypass MCP HTTP, call SDK directly. "
-             "Currently no-op; all domains go through MCP HTTP.",
+        "--direct-sdk",
+        action="store_true",
+        help="(reserved) bypass MCP HTTP, call SDK directly. Currently no-op; all domains go through MCP HTTP.",
     )
     args = parser.parse_args()
 
     # 确定要跑的 domain 列表
     if args.domain:
         if args.domain not in _DOMAIN_REGISTRY:
-            parser.error(
-                f"unknown domain '{args.domain}'. "
-                f"Available: {', '.join(_DOMAIN_REGISTRY)}"
-            )
+            parser.error(f"unknown domain '{args.domain}'. Available: {', '.join(_DOMAIN_REGISTRY)}")
         domains = [args.domain]
     elif args.priority:
-        domains = [
-            n for n, (_, p) in _DOMAIN_REGISTRY.items() if p == args.priority
-        ]
+        domains = [n for n, (_, p) in _DOMAIN_REGISTRY.items() if p == args.priority]
     elif args.all:
         domains = list(_DOMAIN_REGISTRY.keys())
     else:

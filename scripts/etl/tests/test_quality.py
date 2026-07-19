@@ -1,4 +1,5 @@
 """Tests for data quality checks."""
+
 from common.quality import (
     run_checks,
     QualityReport,
@@ -75,9 +76,14 @@ def test_run_checks_blocking_detected():
 def test_quality_report_to_list():
     """to_list 用于序列化到日志。"""
     report = QualityReport()
-    report.issues.append({
-        "check": "min_row_count", "passed": False, "blocking": True, "message": "x",
-    })
+    report.issues.append(
+        {
+            "check": "min_row_count",
+            "passed": False,
+            "blocking": True,
+            "message": "x",
+        }
+    )
     lst = report.to_list()
     assert len(lst) == 1
     assert lst[0]["check"] == "min_row_count"

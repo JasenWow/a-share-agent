@@ -1,4 +1,5 @@
 """Tests for parquet_writer."""
+
 import pyarrow.parquet as pq
 import pytest
 
@@ -32,10 +33,22 @@ def test_write_overwrite_is_idempotent(tmp_path):
     rows1 = [{"code": "600519", "close": 1692.0}]
     rows2 = [{"code": "600519", "close": 1700.0}]
 
-    write(domain="equity_daily", partition_col="dt", partition_val="2026-07-17",
-          rows=rows1, mode="overwrite", ods_root=tmp_path)
-    write(domain="equity_daily", partition_col="dt", partition_val="2026-07-17",
-          rows=rows2, mode="overwrite", ods_root=tmp_path)
+    write(
+        domain="equity_daily",
+        partition_col="dt",
+        partition_val="2026-07-17",
+        rows=rows1,
+        mode="overwrite",
+        ods_root=tmp_path,
+    )
+    write(
+        domain="equity_daily",
+        partition_col="dt",
+        partition_val="2026-07-17",
+        rows=rows2,
+        mode="overwrite",
+        ods_root=tmp_path,
+    )
 
     parquet_file = tmp_path / "equity_daily" / "dt=2026-07-17" / "part-0.parquet"
     table = pq.read_table(parquet_file)
@@ -46,15 +59,27 @@ def test_write_overwrite_is_idempotent(tmp_path):
 def test_write_empty_rows_raises(tmp_path):
     """空 rows 报错，不写文件。"""
     with pytest.raises(ValueError, match="empty"):
-        write(domain="equity_daily", partition_col="dt", partition_val="2026-07-17",
-              rows=[], mode="overwrite", ods_root=tmp_path)
+        write(
+            domain="equity_daily",
+            partition_col="dt",
+            partition_val="2026-07-17",
+            rows=[],
+            mode="overwrite",
+            ods_root=tmp_path,
+        )
 
 
 def test_write_atomic_no_tmp_left(tmp_path):
     """写入后无 .tmp 残留文件。"""
     rows = [{"code": "600519", "close": 1692.0}]
-    write(domain="equity_daily", partition_col="dt", partition_val="2026-07-17",
-          rows=rows, mode="overwrite", ods_root=tmp_path)
+    write(
+        domain="equity_daily",
+        partition_col="dt",
+        partition_val="2026-07-17",
+        rows=rows,
+        mode="overwrite",
+        ods_root=tmp_path,
+    )
     tmps = list(tmp_path.rglob("*.tmp"))
     assert tmps == []
 
@@ -62,8 +87,14 @@ def test_write_atomic_no_tmp_left(tmp_path):
 def test_write_monthly_partition(tmp_path):
     """月度分区路径格式正确。"""
     rows = [{"index_code": "000300", "code": "600519"}]
-    write(domain="index_constituents", partition_col="dt", partition_val="2026-07",
-          rows=rows, mode="overwrite", ods_root=tmp_path)
+    write(
+        domain="index_constituents",
+        partition_col="dt",
+        partition_val="2026-07",
+        rows=rows,
+        mode="overwrite",
+        ods_root=tmp_path,
+    )
     parquet_file = tmp_path / "index_constituents" / "dt=2026-07" / "part-0.parquet"
     assert parquet_file.exists()
 
@@ -71,7 +102,13 @@ def test_write_monthly_partition(tmp_path):
 def test_write_partition_path_format(tmp_path):
     """分区路径是 hive 格式 {col}={val}。"""
     rows = [{"code": "600519"}]
-    write(domain="equity_daily", partition_col="period", partition_val="2024Q4",
-          rows=rows, mode="overwrite", ods_root=tmp_path)
+    write(
+        domain="equity_daily",
+        partition_col="period",
+        partition_val="2024Q4",
+        rows=rows,
+        mode="overwrite",
+        ods_root=tmp_path,
+    )
     parquet_file = tmp_path / "equity_daily" / "period=2024Q4" / "part-0.parquet"
     assert parquet_file.exists()

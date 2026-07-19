@@ -6,6 +6,7 @@
 五段式契约：extract → transform → check_quality → load → run
 所有 ODS domain 都照此模式。
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -67,25 +68,27 @@ def transform(rows: list[dict], date: str) -> list[dict]:
         if "error" in r:
             continue
         code, exchange = _split_ts_code(r.get("ts_code", r.get("code", "")))
-        result.append({
-            "trade_date": str(r.get("trade_date", date)),
-            "code": code,
-            "exchange": exchange,
-            "open": float(r.get("open", 0) or 0),
-            "high": float(r.get("high", 0) or 0),
-            "low": float(r.get("low", 0) or 0),
-            "close": float(r.get("close", 0) or 0),
-            "volume": float(r.get("vol", r.get("volume", 0)) or 0),
-            "amount": float(r.get("amount", 0) or 0),
-            "pct_chg": float(r.get("pct_chg", 0) or 0),
-            **inject(
-                source=SOURCE_MCP,
-                source_tool="daily",
-                fetched_at=fetched_at,
-                params_hash=p_hash,
-                etl_run_id=etl_run_id,
-            ),
-        })
+        result.append(
+            {
+                "trade_date": str(r.get("trade_date", date)),
+                "code": code,
+                "exchange": exchange,
+                "open": float(r.get("open", 0) or 0),
+                "high": float(r.get("high", 0) or 0),
+                "low": float(r.get("low", 0) or 0),
+                "close": float(r.get("close", 0) or 0),
+                "volume": float(r.get("vol", r.get("volume", 0)) or 0),
+                "amount": float(r.get("amount", 0) or 0),
+                "pct_chg": float(r.get("pct_chg", 0) or 0),
+                **inject(
+                    source=SOURCE_MCP,
+                    source_tool="daily",
+                    fetched_at=fetched_at,
+                    params_hash=p_hash,
+                    etl_run_id=etl_run_id,
+                ),
+            }
+        )
     return result
 
 

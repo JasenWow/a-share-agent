@@ -4,6 +4,7 @@ Usage:
   uv run python -m scripts.etl.report --missing-dates --domain equity_daily --last 30d
   uv run python -m scripts.etl.report --jobs --status failed --last 7d
 """
+
 from __future__ import annotations
 
 import argparse
@@ -50,6 +51,7 @@ def missing_dates(domain: str, last: str) -> None:
         # 期望交易日（用 exchange_calendars）
         try:
             import exchange_calendars as xcals
+
             sess = xcals.get_calendar("XSHG")
             sessions = sess.sessions_in_range(
                 since.strftime("%Y-%m-%d"),
@@ -66,10 +68,7 @@ def missing_dates(domain: str, last: str) -> None:
         if missing:
             start = missing[0].replace("-", "")
             end = missing[-1].replace("-", "")
-            print(
-                f"\nBackfill: uv run python -m scripts.etl.runner "
-                f"{domain} --start {start} --end {end}"
-            )
+            print(f"\nBackfill: uv run python -m scripts.etl.runner {domain} --start {start} --end {end}")
     finally:
         conn.close()
 
@@ -101,10 +100,7 @@ def jobs_report(status: str | None, last: str) -> None:
         print(f"Jobs (status={status or 'all'}, last {last}): {len(rows)}")
         for r in rows:
             err = f" | {r[4][:80]}" if r[4] else ""
-            print(
-                f"  [{r[2]:9}] {r[1]:20} attempts={r[3]} "
-                f"created={r[5][:19]}{err}"
-            )
+            print(f"  [{r[2]:9}] {r[1]:20} attempts={r[3]} created={r[5][:19]}{err}")
     finally:
         conn.close()
 
@@ -112,12 +108,12 @@ def jobs_report(status: str | None, last: str) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description="ETL report")
     parser.add_argument("--missing-dates", action="store_true")
-    parser.add_argument("--quality-trend", action="store_true",
-                        help="(not yet implemented; needs quality_log table)")
+    parser.add_argument("--quality-trend", action="store_true", help="(not yet implemented; needs quality_log table)")
     parser.add_argument("--jobs", action="store_true")
     parser.add_argument("--domain", default="equity_daily")
     parser.add_argument(
-        "--status", default=None,
+        "--status",
+        default=None,
         choices=["pending", "running", "completed", "failed"],
     )
     parser.add_argument("--last", default="30d", help="time window, e.g. 30d / 7d")

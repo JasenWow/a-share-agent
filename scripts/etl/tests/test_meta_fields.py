@@ -1,4 +1,5 @@
 """Tests for meta_fields injection."""
+
 from common.meta_fields import inject, params_hash
 
 

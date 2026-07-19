@@ -1,10 +1,10 @@
 """Tests for mcp_client. Mock HTTP layer."""
+
 import json
 from unittest.mock import patch, MagicMock
 
 import pytest
 
-from common import mcp_client
 from common.mcp_client import call, health_check, McpError, get_last_params_hash
 
 
@@ -25,9 +25,7 @@ def test_call_returns_result_list():
     payload = {
         "jsonrpc": "2.0",
         "id": "1",
-        "result": {
-            "content": [{"type": "text", "text": json.dumps([{"code": "600519", "close": 1692.0}])}]
-        },
+        "result": {"content": [{"type": "text", "text": json.dumps([{"code": "600519", "close": 1692.0}])}]},
     }
     with patch("common.mcp_client.requests.post", return_value=_mock_response(payload)):
         rows = call("tushare", "daily", {"trade_date": "20260717"})
@@ -37,7 +35,8 @@ def test_call_returns_result_list():
 def test_call_sets_params_hash():
     """调用后 get_last_params_hash 返回该次调用的 hash。"""
     payload = {
-        "jsonrpc": "2.0", "id": "1",
+        "jsonrpc": "2.0",
+        "id": "1",
         "result": {"content": [{"type": "text", "text": "[]"}]},
     }
     with patch("common.mcp_client.requests.post", return_value=_mock_response(payload)):
@@ -48,8 +47,7 @@ def test_call_sets_params_hash():
 
 def test_call_raises_on_mcp_error():
     """MCP 返回 error 字段时抛 McpError。"""
-    payload = {"jsonrpc": "2.0", "id": "1",
-               "error": {"code": -32602, "message": "invalid params"}}
+    payload = {"jsonrpc": "2.0", "id": "1", "error": {"code": -32602, "message": "invalid params"}}
     with patch("common.mcp_client.requests.post", return_value=_mock_response(payload)):
         with pytest.raises(McpError, match="invalid params"):
             call("tushare", "daily", {})
@@ -58,8 +56,7 @@ def test_call_raises_on_mcp_error():
 def test_call_returns_error_dict_from_tool():
     """工具内部错误（[{'error': ...}]）按原样返回（不抛异常，让上层 quality 判断）。"""
     error_text = json.dumps([{"error": "rate limited", "tool": "daily"}])
-    payload = {"jsonrpc": "2.0", "id": "1",
-               "result": {"content": [{"type": "text", "text": error_text}]}}
+    payload = {"jsonrpc": "2.0", "id": "1", "result": {"content": [{"type": "text", "text": error_text}]}}
     with patch("common.mcp_client.requests.post", return_value=_mock_response(payload)):
         rows = call("tushare", "daily", {})
     assert rows == [{"error": "rate limited", "tool": "daily"}]
@@ -71,8 +68,7 @@ def test_call_retries_on_network_error():
     max_retries=3 → 3 次尝试（attempt 0/1/2），前 2 次失败后 sleep 再重试，
     第 3 次失败后直接抛错。所以 sleep 2 次。
     """
-    with patch("common.mcp_client.requests.post",
-               side_effect=ConnectionError("network down")):
+    with patch("common.mcp_client.requests.post", side_effect=ConnectionError("network down")):
         with patch("common.mcp_client.time.sleep") as mock_sleep:  # 加速测试
             with pytest.raises(McpError, match="network down"):
                 call("tushare", "daily", {}, max_retries=3)
@@ -88,7 +84,8 @@ def test_call_unknown_source_raises():
 def test_health_check_ok():
     """health_check 成功返回 True。"""
     payload = {
-        "jsonrpc": "2.0", "id": "1",
+        "jsonrpc": "2.0",
+        "id": "1",
         "result": {"content": [{"type": "text", "text": json.dumps([{"status": "ok"}])}]},
     }
     with patch("common.mcp_client.requests.post", return_value=_mock_response(payload)):
@@ -97,7 +94,6 @@ def test_health_check_ok():
 
 def test_health_check_fail():
     """health_check 失败返回 False（不抛异常）。"""
-    with patch("common.mcp_client.requests.post",
-               side_effect=ConnectionError("down")):
+    with patch("common.mcp_client.requests.post", side_effect=ConnectionError("down")):
         with patch("common.mcp_client.time.sleep"):
             assert health_check("akshare", max_retries=1) is False

@@ -1,4 +1,5 @@
 """Tests for ETL config module."""
+
 from pathlib import Path
 
 from common.config import (

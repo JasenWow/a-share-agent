@@ -1,4 +1,5 @@
 """Tests for catalog CRUD."""
+
 import duckdb
 import pytest
 

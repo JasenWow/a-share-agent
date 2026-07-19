@@ -1,4 +1,5 @@
 """ETL 配置：仓库路径、MCP 端点。从 .env 读取，提供合理默认值。"""
+
 from __future__ import annotations
 
 import os

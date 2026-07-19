@@ -8,6 +8,7 @@ DuckDB 实现的适用场景：
 - 单进程或多进程但低并发（<10 worker）
 不适用：高并发多 worker 分布式场景（升级到 PGBossJobService）。
 """
+
 from __future__ import annotations
 
 import json
@@ -30,6 +31,7 @@ class JobStatus(str, Enum):
 @dataclass
 class JobSpec:
     """提交任务的参数。"""
+
     domain: str
     params: dict
     max_attempts: int = 3
@@ -38,6 +40,7 @@ class JobSpec:
 @dataclass
 class Job:
     """任务实体。"""
+
     id: str
     domain: str
     params: dict
@@ -57,6 +60,7 @@ class JobService(Protocol):
 
     业务代码依赖此接口，不感知是 DuckDB 还是 pgboss 实现。
     """
+
     def submit(self, job: JobSpec) -> str: ...
     def claim(self, worker_id: str) -> Job | None: ...
     def complete(self, job_id: str, result: dict) -> None: ...
@@ -89,9 +93,7 @@ def init_jobs_table(conn: duckdb.DuckDBPyConnection) -> None:
         )
         """
     )
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_jobs_status ON etl_jobs(status, created_at)"
-    )
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_jobs_status ON etl_jobs(status, created_at)")
 
 
 def _row_to_job(row, cols) -> Job:
@@ -185,9 +187,7 @@ class DuckDBJobService:
             )
 
     def get(self, job_id: str) -> Job | None:
-        row = self.conn.execute(
-            "SELECT * FROM etl_jobs WHERE id = ?", [job_id]
-        ).fetchone()
+        row = self.conn.execute("SELECT * FROM etl_jobs WHERE id = ?", [job_id]).fetchone()
         if not row:
             return None
         cols = [d[0] for d in self.conn.description]
@@ -201,8 +201,6 @@ class DuckDBJobService:
                 [status.value, limit],
             ).fetchall()
         else:
-            rows = self.conn.execute(
-                "SELECT * FROM etl_jobs ORDER BY created_at DESC LIMIT ?", [limit]
-            ).fetchall()
+            rows = self.conn.execute("SELECT * FROM etl_jobs ORDER BY created_at DESC LIMIT ?", [limit]).fetchall()
         cols = [d[0] for d in self.conn.description]
         return [_row_to_job(r, cols) for r in rows]

@@ -3,6 +3,7 @@
 数据源：tushare income
 分区：period=YYYYQn（财报期，同财报期会修订，多版本通过 ann_date 区分）
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -50,25 +51,27 @@ def transform(rows: list[dict], period_partition: str) -> list[dict]:
         if "error" in r:
             continue
         code, exchange = _split_ts_code(r.get("ts_code", ""))
-        result.append({
-            "code": code,
-            "exchange": exchange,
-            "ann_date": str(r.get("ann_date", "")),
-            "end_date": str(r.get("end_date", "")),
-            "period": period_partition,
-            "update_flag": str(r.get("update_flag", "")),
-            "revenue": float(r.get("revenue", 0) or 0),
-            "oper_profit": float(r.get("oper_profit", 0) or 0),
-            "n_income": float(r.get("n_income", 0) or 0),
-            "n_income_attr_p": float(r.get("n_income_attr_p", 0) or 0),
-            **inject(
-                source=SOURCE_MCP,
-                source_tool="income",
-                fetched_at=fetched_at,
-                params_hash=p_hash,
-                etl_run_id=etl_run_id,
-            ),
-        })
+        result.append(
+            {
+                "code": code,
+                "exchange": exchange,
+                "ann_date": str(r.get("ann_date", "")),
+                "end_date": str(r.get("end_date", "")),
+                "period": period_partition,
+                "update_flag": str(r.get("update_flag", "")),
+                "revenue": float(r.get("revenue", 0) or 0),
+                "oper_profit": float(r.get("oper_profit", 0) or 0),
+                "n_income": float(r.get("n_income", 0) or 0),
+                "n_income_attr_p": float(r.get("n_income_attr_p", 0) or 0),
+                **inject(
+                    source=SOURCE_MCP,
+                    source_tool="income",
+                    fetched_at=fetched_at,
+                    params_hash=p_hash,
+                    etl_run_id=etl_run_id,
+                ),
+            }
+        )
     return result
 
 

@@ -3,6 +3,7 @@
 数据源：tushare index_weight
 分区：dt=YYYY-MM（月度快照，捕捉成分调整）
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -58,20 +59,22 @@ def transform(rows: list[dict], month_partition: str) -> list[dict]:
         code, exchange = _split_con_code(r.get("con_code", ""))
         index_code_full = r.get("index_code", "")
         index_code, _, _ = index_code_full.partition(".")
-        result.append({
-            "index_code": index_code,
-            "trade_date": str(r.get("trade_date", "")),
-            "code": code,
-            "exchange": exchange,
-            "weight": float(r.get("weight", 0) or 0),
-            **inject(
-                source=SOURCE_MCP,
-                source_tool="index_weight",
-                fetched_at=fetched_at,
-                params_hash=p_hash,
-                etl_run_id=etl_run_id,
-            ),
-        })
+        result.append(
+            {
+                "index_code": index_code,
+                "trade_date": str(r.get("trade_date", "")),
+                "code": code,
+                "exchange": exchange,
+                "weight": float(r.get("weight", 0) or 0),
+                **inject(
+                    source=SOURCE_MCP,
+                    source_tool="index_weight",
+                    fetched_at=fetched_at,
+                    params_hash=p_hash,
+                    etl_run_id=etl_run_id,
+                ),
+            }
+        )
     return result
 
 

@@ -1,4 +1,5 @@
 """Tests for equity_daily ETL domain."""
+
 import json
 from pathlib import Path
 from unittest.mock import patch
@@ -7,7 +8,6 @@ from ods.equity_daily import (
     DOMAIN,
     PARTITION_COL,
     SOURCE_MCP,
-    extract,
     transform,
     run,
     CATALOG_ENTRY,
@@ -32,8 +32,7 @@ def test_constants():
 def test_catalog_entry_shape():
     """CATALOG_ENTRY 含必需字段，供 init.py 注册。"""
     assert CATALOG_ENTRY["table_name"] == "ods_equity_daily"
-    for f in ["domain", "source_mcp", "source_tool", "partition_col",
-              "partition_grain", "schema_json", "description"]:
+    for f in ["domain", "source_mcp", "source_tool", "partition_col", "partition_grain", "schema_json", "description"]:
         assert f in CATALOG_ENTRY
 
 
@@ -82,8 +81,7 @@ def test_transform_injects_meta_fields():
     raw = _load_fixture()
     clean = transform(raw, "20260717")
     for r in clean:
-        for f in ["__source", "__source_tool", "__fetched_at",
-                  "__params_hash", "__etl_run_id"]:
+        for f in ["__source", "__source_tool", "__fetched_at", "__params_hash", "__etl_run_id"]:
             assert f in r
         assert r["__source"] == "tushare"
         assert r["__source_tool"] == "daily"
@@ -129,7 +127,6 @@ def test_run_ok_with_lowered_threshold(tmp_path):
 
 def test_run_extract_failed_returns_error(tmp_path):
     """MCP 返回 error 时 status=extract_failed。"""
-    with patch("ods.equity_daily.mcp_client.call",
-               return_value=[{"error": "rate limited"}]):
+    with patch("ods.equity_daily.mcp_client.call", return_value=[{"error": "rate limited"}]):
         result = run("20260717", ods_root=tmp_path)
     assert result["status"] == "extract_failed"

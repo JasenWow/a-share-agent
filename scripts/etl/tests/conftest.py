@@ -3,6 +3,7 @@
 让 scripts/etl/tests/ 下的测试可以用 `from common.xxx import` 和
 `from ods.xxx import`：把 scripts/etl/ 加到 sys.path。
 """
+
 import sys
 from pathlib import Path
 

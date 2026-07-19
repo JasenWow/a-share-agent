@@ -7,6 +7,7 @@
 - __params_hash:   MCP 调用参数的 sha256
 - __etl_run_id:    ETL 运行实例 ID
 """
+
 from __future__ import annotations
 
 import hashlib

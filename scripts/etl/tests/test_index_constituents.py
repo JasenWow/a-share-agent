@@ -1,4 +1,5 @@
 """Tests for index_constituents ETL domain."""
+
 import json
 from pathlib import Path
 from unittest.mock import patch

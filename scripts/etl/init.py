@@ -2,6 +2,7 @@
 
 Usage: uv run python -m scripts.etl.init
 """
+
 from __future__ import annotations
 
 import sys
@@ -44,25 +45,39 @@ def create_views(conn: duckdb.DuckDBPyConnection) -> None:
     后续 ETL 写入 parquet 后，视图自动指向真实数据（视图是懒求值）。
     需要重新跑 init 刷新视图，或直接查询 parquet glob。
     """
-    import pyarrow as pa
 
     # 各 domain 的空 schema（与 CATALOG_ENTRY 对齐，DuckDB 类型名）
     empty_schemas = {
         "ods_equity_daily": {
-            "trade_date": "VARCHAR", "code": "VARCHAR", "exchange": "VARCHAR",
-            "open": "DOUBLE", "high": "DOUBLE", "low": "DOUBLE",
-            "close": "DOUBLE", "volume": "DOUBLE", "amount": "DOUBLE",
+            "trade_date": "VARCHAR",
+            "code": "VARCHAR",
+            "exchange": "VARCHAR",
+            "open": "DOUBLE",
+            "high": "DOUBLE",
+            "low": "DOUBLE",
+            "close": "DOUBLE",
+            "volume": "DOUBLE",
+            "amount": "DOUBLE",
             "pct_chg": "DOUBLE",
         },
         "ods_index_constituents": {
-            "index_code": "VARCHAR", "trade_date": "VARCHAR", "code": "VARCHAR",
-            "exchange": "VARCHAR", "weight": "DOUBLE",
+            "index_code": "VARCHAR",
+            "trade_date": "VARCHAR",
+            "code": "VARCHAR",
+            "exchange": "VARCHAR",
+            "weight": "DOUBLE",
         },
         "ods_financial_income": {
-            "code": "VARCHAR", "exchange": "VARCHAR", "ann_date": "VARCHAR",
-            "end_date": "VARCHAR", "period": "VARCHAR", "update_flag": "VARCHAR",
-            "revenue": "DOUBLE", "oper_profit": "DOUBLE",
-            "n_income": "DOUBLE", "n_income_attr_p": "DOUBLE",
+            "code": "VARCHAR",
+            "exchange": "VARCHAR",
+            "ann_date": "VARCHAR",
+            "end_date": "VARCHAR",
+            "period": "VARCHAR",
+            "update_flag": "VARCHAR",
+            "revenue": "DOUBLE",
+            "oper_profit": "DOUBLE",
+            "n_income": "DOUBLE",
+            "n_income_attr_p": "DOUBLE",
         },
     }
 
@@ -80,9 +95,7 @@ def create_views(conn: duckdb.DuckDBPyConnection) -> None:
             # 首次无 parquet：用 VALUES 建带 schema 的空视图占位
             cols = list(empty_schemas[view_name].items())
             # 构造一个全 NULL 的单行 cast，再过滤掉，得到带 schema 的 0 行视图
-            cast_cols = ", ".join(
-                f"CAST(NULL AS {v}) AS {k}" for k, v in cols
-            )
+            cast_cols = ", ".join(f"CAST(NULL AS {v}) AS {k}" for k, v in cols)
             conn.execute(
                 f"""CREATE OR REPLACE VIEW {view_name} AS
                     SELECT {cast_cols} WHERE 1=0"""
@@ -115,10 +128,7 @@ def main() -> int:
     create_views(conn)
 
     conn.close()
-    print(
-        "\n✓ Warehouse initialized. "
-        "Run ETL: uv run python -m scripts.etl.runner equity_daily --date <YYYYMMDD>"
-    )
+    print("\n✓ Warehouse initialized. Run ETL: uv run python -m scripts.etl.runner equity_daily --date <YYYYMMDD>")
     return 0
 
 

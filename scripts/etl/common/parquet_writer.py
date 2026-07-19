@@ -3,6 +3,7 @@
 分区路径：{ods_root}/{domain}/{partition_col}={partition_val}/part-0.parquet
 原子性：先写 .tmp，校验后 os.replace 覆盖
 """
+
 from __future__ import annotations
 
 import os
@@ -42,6 +43,7 @@ def write(
 
     if ods_root is None:
         from common.config import ODS_ROOT
+
         ods_root = ODS_ROOT
 
     partition_dir = ods_root / domain / f"{partition_col}={partition_val}"
@@ -58,9 +60,7 @@ def write(
     verify = pq.ParquetFile(tmp).read()
     if verify.num_rows != len(rows):
         tmp.unlink(missing_ok=True)
-        raise RuntimeError(
-            f"Parquet verify failed: wrote {len(rows)} rows but read back {verify.num_rows}"
-        )
+        raise RuntimeError(f"Parquet verify failed: wrote {len(rows)} rows but read back {verify.num_rows}")
 
     os.replace(tmp, target)
 

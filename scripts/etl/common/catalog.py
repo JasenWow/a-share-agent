@@ -2,6 +2,7 @@
 
 catalog 表存 DuckDB，记录每个 ODS 表的元信息（数据源、分区、schema、所有者）。
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -73,9 +74,7 @@ def register(conn: duckdb.DuckDBPyConnection, entry: dict) -> None:
 
 def get(conn: duckdb.DuckDBPyConnection, table_name: str) -> dict | None:
     """查单个表，无则 None。"""
-    row = conn.execute(
-        "SELECT * FROM ods_catalog WHERE table_name = ?", [table_name]
-    ).fetchone()
+    row = conn.execute("SELECT * FROM ods_catalog WHERE table_name = ?", [table_name]).fetchone()
     if not row:
         return None
     cols = [d[0] for d in conn.description]
@@ -84,8 +83,6 @@ def get(conn: duckdb.DuckDBPyConnection, table_name: str) -> dict | None:
 
 def list_all(conn: duckdb.DuckDBPyConnection) -> list[dict]:
     """列出所有 catalog 记录，按 table_name 排序。"""
-    rows = conn.execute(
-        "SELECT * FROM ods_catalog ORDER BY table_name"
-    ).fetchall()
+    rows = conn.execute("SELECT * FROM ods_catalog ORDER BY table_name").fetchall()
     cols = [d[0] for d in conn.description]
     return [dict(zip(cols, r)) for r in rows]

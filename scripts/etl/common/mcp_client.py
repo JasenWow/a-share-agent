@@ -4,6 +4,7 @@
 端点：{MCP_URL}/mcp，POST JSON-RPC 2.0。
 返回 result.content[0].text 是 JSON 字符串，解析后是 list[dict]。
 """
+
 from __future__ import annotations
 
 import json
@@ -64,6 +65,7 @@ def call(
     """
     global _last_params_hash
     from common.meta_fields import params_hash
+
     _last_params_hash = params_hash(params)
 
     if source not in _SOURCE_URLS:
@@ -93,9 +95,7 @@ def call(
                 raise McpError(f"MCP error from {source}.{tool}: {data['error']}")
 
             if "result" not in data:
-                raise McpError(
-                    f"MCP malformed response from {source}.{tool}: no result"
-                )
+                raise McpError(f"MCP malformed response from {source}.{tool}: no result")
 
             content = data["result"].get("content", [])
             if not content:
@@ -110,13 +110,11 @@ def call(
         except (requests.RequestException, ConnectionError) as e:
             last_exc = e
             if attempt < max_retries - 1:
-                time.sleep(2 ** attempt)  # 指数退避：1s, 2s, 4s
+                time.sleep(2**attempt)  # 指数退避：1s, 2s, 4s
                 continue
             break
 
-    raise McpError(
-        f"MCP call {source}.{tool} failed after {max_retries} retries: {last_exc}"
-    )
+    raise McpError(f"MCP call {source}.{tool} failed after {max_retries} retries: {last_exc}")
 
 
 def health_check(source: str, max_retries: int = 1) -> bool:

@@ -1,4 +1,5 @@
 """Tests for JobService (DuckDB implementation)."""
+
 import duckdb
 import pytest
 
@@ -69,9 +70,10 @@ def test_claim_atomic_no_double_claim(svc):
 def test_claim_picks_oldest_first(svc):
     """claim 按创建时间排序，领最早的。"""
     import time
+
     id1 = svc.submit(JobSpec(domain="d1", params={}))
     time.sleep(0.01)  # 确保 created_at 不同
-    id2 = svc.submit(JobSpec(domain="d2", params={}))
+    svc.submit(JobSpec(domain="d2", params={}))  # 第二个任务
     claimed = svc.claim("w1")
     assert claimed.id == id1  # 最早的先领
 
