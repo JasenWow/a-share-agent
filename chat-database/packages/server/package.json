@@ -18,7 +18,7 @@
     "@ai-sdk/openai": "^2.0.0",
     "@ai-sdk/anthropic": "^2.0.0",
     "@chat-database/shared": "workspace:*",
-    "@duckdb/node-api": "^1.5.4",
+    "@duckdb/node-api": "1.5.4-r.1",
     "ai": "^5.0.108",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^11.9.0",

@@ -41,7 +41,7 @@ export const poolManager = {
     }
 
     const config: ExternalDbConfig = {
-      type: (row.dbType as "postgresql" | "sqlite") || "postgresql",
+      type: (row.dbType as "postgresql" | "sqlite" | "duckdb") || "postgresql",
       host: row.host,
       port: row.port,
       database: row.database,

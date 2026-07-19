@@ -82,15 +82,28 @@ databaseRoutes.post("/", async (c) => {
   const body = await c.req.json()
   const { name, dbType, host, port, database, username, password, sslEnabled, filePath } = body
 
-  if (!name || !host) {
-    return c.json({ error: "Name and host are required" }, 400)
+  // File-based DBs (duckdb, sqlite) need filePath, not host.
+  // Network DBs (postgresql) need host.
+  const type = (dbType || "postgresql") as string
+  const isFileBased = type === "duckdb" || type === "sqlite"
+  if (!name) {
+    return c.json({ error: "Name is required" }, 400)
+  }
+  if (isFileBased) {
+    if (!filePath) {
+      return c.json({ error: `filePath is required for ${type}` }, 400)
+    }
+  } else {
+    if (!host) {
+      return c.json({ error: `host is required for ${type}` }, 400)
+    }
   }
 
   const row = await db.insert(externalDatabases).values({
     name,
-    dbType: dbType || "postgresql",
-    host,
-    port: port || 5432,
+    dbType: type,
+    host: host || "(file)",
+    port: port || (isFileBased ? 0 : 5432),
     database: database || "",
     username: username || "",
     password: password || "",

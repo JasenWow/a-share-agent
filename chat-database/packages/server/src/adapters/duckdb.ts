@@ -49,17 +49,12 @@ export class DuckDBAdapter implements DatabaseAdapter {
 
   private async getConnection() {
     if (!this.instance) {
-      // DuckDBInstance.create(path, options) — options supports READ_ONLY via
-      // the second arg as an object: { readOnly: true } in current API,
-      // or via "READ_ONLY" string in older API. We use the broader form.
-      // See https://duckdb.org/docs/current/clients/node_neo/overview.html
+      // @duckdb/node-api option syntax (verified under Bun 1.3.14):
+      //   DuckDBInstance.create(path, { access_mode: "READ_ONLY" })
+      // Common wrong guesses that DON'T work: { readOnly: true }, "READ_ONLY",
+      // "access_mode=READ_ONLY". See probe in commit history.
       if (this.readOnly) {
-        // Try the official options-object form; fall back to string if needed
-        try {
-          this.instance = await DuckDBInstance.create(this.filePath, { readOnly: true } as any)
-        } catch {
-          this.instance = await DuckDBInstance.create(this.filePath, "READ_ONLY" as any)
-        }
+        this.instance = await DuckDBInstance.create(this.filePath, { access_mode: "READ_ONLY" })
       } else {
         this.instance = await DuckDBInstance.create(this.filePath)
       }
@@ -83,7 +78,7 @@ export class DuckDBAdapter implements DatabaseAdapter {
     } finally {
       if (conn) {
         try {
-          await conn.close()
+          conn.closeSync()
         } catch {
           // Swallow close errors
         }
@@ -93,22 +88,21 @@ export class DuckDBAdapter implements DatabaseAdapter {
 
   async getSchema(): Promise<TableSchema[]> {
     /**
-     * DuckDB exposes schema via duckdb_tables() + duckdb_columns() system functions.
-     * Filters out internal schemas (pg_catalog, information_schema, system).
+     * Use information_schema.columns (DuckDB supports the SQL standard).
+     * Filters out internal schemas (pg_catalog, information_schema, system, temp).
+     * For dbt-created schemas (dwd/dws/ads), prefix the table name with schema.
      */
     const sql = `
       SELECT
-        t.schema_name AS schema_name,
-        t.table_name AS table_name,
-        c.column_name AS column_name,
-        c.data_type AS data_type,
-        c.is_nullable AS is_nullable
-      FROM duckdb_tables() t
-      JOIN duckdb_columns() c
-        ON t.schema_name = c.schema_name AND t.table_name = c.table_name
-      WHERE t.schema_name NOT IN ('pg_catalog', 'information_schema', 'system', 'main')
-         OR t.schema_name = 'main'
-      ORDER BY t.schema_name, t.table_name, c.column_index
+        table_schema AS schema_name,
+        table_name,
+        column_name,
+        data_type,
+        is_nullable
+      FROM information_schema.columns
+      WHERE table_schema NOT IN ('pg_catalog', 'information_schema', 'system', 'temp', 'main')
+         OR table_schema = 'main'
+      ORDER BY table_schema, table_name, ordinal_position
     `
     let conn: Awaited<ReturnType<typeof this.getConnection>> | null = null
     try {
@@ -124,7 +118,6 @@ export class DuckDBAdapter implements DatabaseAdapter {
 
       const schemaMap = new Map<string, TableSchema>()
       for (const row of rows) {
-        // Include schema prefix when not 'main' to avoid collisions
         const qualifiedName =
           row.schema_name === "main" ? row.table_name : `${row.schema_name}.${row.table_name}`
         if (!schemaMap.has(qualifiedName)) {
@@ -142,7 +135,7 @@ export class DuckDBAdapter implements DatabaseAdapter {
     } finally {
       if (conn) {
         try {
-          await conn.close()
+          conn.closeSync()
         } catch {
           // Swallow
         }
@@ -161,7 +154,7 @@ export class DuckDBAdapter implements DatabaseAdapter {
     } finally {
       if (conn) {
         try {
-          await conn.close()
+          conn.closeSync()
         } catch {
           // Swallow
         }
@@ -170,8 +163,15 @@ export class DuckDBAdapter implements DatabaseAdapter {
   }
 
   async close(): Promise<void> {
-    // DuckDBInstance has no explicit close in @duckdb/node-api current API;
-    // connections are closed per-query. Instance is GC'd.
-    this.instance = null
+    // @duckdb/node-api uses closeSync for both instance and connection.
+    // We close the instance (which terminates its connections) and clear it.
+    if (this.instance) {
+      try {
+        this.instance.closeSync()
+      } catch {
+        // Swallow
+      }
+      this.instance = null
+    }
   }
 }

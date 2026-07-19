@@ -11,9 +11,8 @@ import { tmpdir } from "os"
  * DuckDB adapter integration tests.
  *
  * Creates a real DuckDB file with test data, then exercises the adapter.
- * Requires @duckdb/node-api native binding (Node-API addon).
- * If Bun runtime fails to load the binding, this test will fail —
- * that's the R4 risk from the integration spec. Run under Node as fallback.
+ * Verified working under Bun 1.3.14 + @duckdb/node-api 1.5.4-r.1 on darwin arm64.
+ * (R4 risk from integration spec: cleared — Bun's N-API loads the native binding.)
  */
 
 const TEST_DIR = join(tmpdir(), `chatdb-duckdb-test-${Date.now()}`)
@@ -39,7 +38,8 @@ beforeAll(async () => {
         (2, 'value_pe', -0.032, 'csi500')
     `)
   } finally {
-    await conn.close()
+    conn.closeSync()
+    instance.closeSync()
   }
 })
 
