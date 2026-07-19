@@ -28,7 +28,7 @@ export function isQueryError(response: QueryResponse): response is QueryError {
 }
 
 // External database connection config
-export type DatabaseType = "postgresql" | "sqlite"
+export type DatabaseType = "postgresql" | "sqlite" | "duckdb"
 
 export interface ConnectionConfig {
   host: string
