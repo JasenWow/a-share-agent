@@ -199,6 +199,25 @@ def check_env_vars() -> list[str]:
     return issues
 
 
+def check_warehouse() -> list[str]:
+    """Check data warehouse structure (INFO only — never blocks)."""
+    issues = []
+    wh = ROOT / "data" / "warehouse"
+    if not wh.exists():
+        issues.append(
+            f"INFO: {wh} not initialized "
+            f"(run `uv run python -m scripts.etl.init`)"
+        )
+        return issues
+    meta_db = wh / "meta.db"
+    if not meta_db.exists():
+        issues.append(
+            f"WARN: {meta_db} missing "
+            f"(run `uv run python -m scripts.etl.init`)"
+        )
+    return issues
+
+
 def main():
     print("A-Share Agents Environment Check")
     print("=" * 50)
@@ -212,6 +231,7 @@ def main():
         ("MCP Server Code", check_mcp_servers_code),
         ("Boundary Rules", check_boundary_rules),
         ("Data Directory", check_data_dir),
+        ("Warehouse", check_warehouse),
         ("Environment Variables", check_env_vars),
     ]
 

@@ -29,3 +29,8 @@ node_modules
 
 # Worktrees (isolated dev workspaces)
 .worktrees/
+
+# Warehouse runtime (Parquet under data/ already ignored; exclude db/logs)
+data/warehouse/meta.db
+data/warehouse/meta.db.wal
+data/warehouse/_logs/
