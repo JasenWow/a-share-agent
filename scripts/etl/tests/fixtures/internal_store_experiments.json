@@ -1,0 +1,4 @@
+[
+  {"id": 1, "name": "exp_momentum_20d_v1", "strategy": "{\"factors\":[\"momentum_20d\"],\"weights\":[1.0]}", "params": "{\"universe\":\"csi300\",\"rebalance\":\"monthly\"}", "result": "{\"final_nav\":1.85,\"sharpe\":1.2,\"max_drawdown\":-0.18}", "created_at": "2026-07-10 10:00:00"},
+  {"id": 2, "name": "exp_value_combo_v2", "strategy": "{\"factors\":[\"value_pe\",\"quality_roe\"],\"weights\":[0.6,0.4]}", "params": "{\"universe\":\"csi500\",\"rebalance\":\"weekly\"}", "result": "{\"final_nav\":1.42,\"sharpe\":0.9,\"max_drawdown\":-0.24}", "created_at": "2026-07-12 15:00:00"}
+]
