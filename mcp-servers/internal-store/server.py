@@ -662,6 +662,204 @@ def deprecate_factor(factor_id: int, reason: str = "") -> list[dict]:
         return [{"error": str(e), "tool": "deprecate_factor"}]
 
 
+# ============================================================
+# Half-automatic feedback loop (子项目 ❻ Meta-Agent 探索)
+# ============================================================
+# 设计原则（路线图 §3❻ D2 半自动）：
+#   - Meta-Agent 生成"候选"(candidate)，不自动入库为 active
+#   - 入库决策权在人：通过 promote_factor / reject_factor 工具审批
+#   - 候选可被推荐报告引用，推荐附置信度
+# ============================================================
+
+
+@mcp.tool()
+def register_factor_candidate(
+    name: str,
+    expression: str,
+    operators: list[str],
+    data_fields: list[str],
+    hypothesis: str,
+    ic: float = 0.0,
+    icir: float = 0.0,
+    turnover: float = 0.0,
+    sharpe: float = 0.0,
+    max_drawdown: float = 0.0,
+    universe: str = "",
+    period: str = "",
+    confidence: float = 0.5,
+    rationale: str = "",
+    source_experiment_id: int | None = None,
+) -> list[dict]:
+    """
+    Register a factor as a CANDIDATE (sub-project ❻ half-automatic loop).
+
+    Candidates are NOT active. They wait for human review.
+    Use promote_factor(id) to approve, reject_factor(id) to reject.
+
+    Args:
+        name, expression, operators, data_fields, hypothesis: factor definition
+        ic, icir, turnover, sharpe, max_drawdown: evaluation metrics
+        universe, period: validation context
+        confidence:    Meta-Agent self-assessed confidence (0.0-1.0)
+        rationale:     Why the agent recommends this factor (Markdown OK)
+        source_experiment_id: ID of the experiment that produced this candidate
+    """
+    try:
+        conn = sqlite3.connect(str(DB_PATH))
+        conn.row_factory = sqlite3.Row
+
+        existing = conn.execute(
+            "SELECT id, status FROM factor_library WHERE expression = ?",
+            (expression,),
+        ).fetchone()
+        if existing:
+            conn.close()
+            return [{
+                "status": "duplicate",
+                "id": existing["id"],
+                "existing_status": existing["status"],
+                "message": "Factor with same expression already exists",
+            }]
+
+        conn.execute(
+            """INSERT INTO factor_library
+            (name, expression, hypothesis, operators, data_fields, ic, icir, turnover,
+             sharpe, max_drawdown, universe, period, walk_forward, status, source_experiment_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'candidate', ?)""",
+            (
+                name,
+                expression,
+                hypothesis,
+                json.dumps(sorted(operators)),
+                json.dumps(sorted(data_fields)),
+                ic,
+                icir,
+                turnover,
+                sharpe,
+                max_drawdown,
+                universe,
+                period,
+                json.dumps({"confidence": confidence, "rationale": rationale}),
+                source_experiment_id,
+            ),
+        )
+        rows = conn.execute(
+            "SELECT * FROM factor_library WHERE status = 'candidate' ORDER BY id DESC LIMIT 1"
+        ).fetchall()
+        conn.commit()
+        conn.close()
+        return [dict(r) for r in rows]
+    except Exception as e:
+        return [{"error": str(e), "tool": "register_factor_candidate"}]
+
+
+@mcp.tool()
+def list_candidates(limit: int = 50) -> list[dict]:
+    """
+    List all candidate factors awaiting human review (sub-project ❻).
+
+    Args:
+        limit: Max number of candidates to return (most recent first).
+    """
+    try:
+        conn = sqlite3.connect(str(DB_PATH))
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            """SELECT * FROM factor_library
+               WHERE status = 'candidate'
+               ORDER BY id DESC LIMIT ?""",
+            (limit,),
+        ).fetchall()
+        conn.close()
+        return [dict(r) for r in rows]
+    except Exception as e:
+        return [{"error": str(e), "tool": "list_candidates"}]
+
+
+@mcp.tool()
+def promote_factor(factor_id: int, reviewer: str = "", notes: str = "") -> list[dict]:
+    """
+    Promote a candidate factor to ACTIVE status (human approval gate, sub-project ❻).
+
+    This is the human-in-the-loop step. Only call after reviewing the candidate's
+    metrics, hypothesis, and Meta-Agent rationale.
+
+    Args:
+        factor_id: ID of the candidate factor to promote.
+        reviewer:  Name of the human reviewer (for audit trail).
+        notes:     Reviewer notes (optional).
+    """
+    try:
+        conn = sqlite3.connect(str(DB_PATH))
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT status FROM factor_library WHERE id = ?", (factor_id,)
+        ).fetchone()
+        if not row:
+            conn.close()
+            return [{"error": f"factor_id {factor_id} not found"}]
+        if row["status"] != "candidate":
+            conn.close()
+            return [{
+                "error": f"factor_id {factor_id} is '{row['status']}', not 'candidate' — only candidates can be promoted",
+            }]
+        conn.execute(
+            "UPDATE factor_library SET status = 'active' WHERE id = ?",
+            (factor_id,),
+        )
+        rows = conn.execute("SELECT * FROM factor_library WHERE id = ?", (factor_id,)).fetchall()
+        conn.commit()
+        conn.close()
+        # Annotate the returned row with reviewer info (not stored in DB schema
+        # to avoid migration; audit trail lives in agent logs)
+        result = [dict(r) for r in rows]
+        if result and reviewer:
+            result[0]["_promoted_by"] = reviewer
+        if result and notes:
+            result[0]["_promotion_notes"] = notes
+        return result
+    except Exception as e:
+        return [{"error": str(e), "tool": "promote_factor"}]
+
+
+@mcp.tool()
+def reject_factor(factor_id: int, reason: str = "", reviewer: str = "") -> list[dict]:
+    """
+    Reject a candidate factor (human decision, sub-project ❻).
+
+    Sets status to 'rejected' (distinct from 'deprecated' which is for formerly-active factors).
+
+    Args:
+        factor_id: ID of the candidate to reject.
+        reason:    Reason for rejection.
+        reviewer:  Name of the human reviewer.
+    """
+    try:
+        conn = sqlite3.connect(str(DB_PATH))
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT status FROM factor_library WHERE id = ?", (factor_id,)
+        ).fetchone()
+        if not row:
+            conn.close()
+            return [{"error": f"factor_id {factor_id} not found"}]
+        conn.execute(
+            "UPDATE factor_library SET status = 'rejected' WHERE id = ?",
+            (factor_id,),
+        )
+        rows = conn.execute("SELECT * FROM factor_library WHERE id = ?", (factor_id,)).fetchall()
+        conn.commit()
+        conn.close()
+        result = [dict(r) for r in rows]
+        if result and reviewer:
+            result[0]["_rejected_by"] = reviewer
+        if result and reason:
+            result[0]["_rejection_reason"] = reason
+        return result
+    except Exception as e:
+        return [{"error": str(e), "tool": "reject_factor"}]
+
+
 # --- ASGI App ---
 mcp_app = mcp.streamable_http_app()
 
