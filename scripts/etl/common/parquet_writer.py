@@ -53,7 +53,9 @@ def write(
     table = pa.Table.from_pylist(rows)
     pq.write_table(table, tmp, compression="snappy")
 
-    verify = pq.read_table(tmp)
+    # 用 ParquetFile.read() 单文件读取，避免 dataset API 的跨文件类型合并
+    # （from_pylist 对低基数列会推断为 dictionary，write/read 一致即可）
+    verify = pq.ParquetFile(tmp).read()
     if verify.num_rows != len(rows):
         tmp.unlink(missing_ok=True)
         raise RuntimeError(
