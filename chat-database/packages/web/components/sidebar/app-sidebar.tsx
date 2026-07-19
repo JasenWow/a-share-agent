@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Database, Sparkles, BarChart3, Users, LineChart } from "lucide-react"
+import { Database, Sparkles, BarChart3, Users, LineChart, FlaskConical, History } from "lucide-react"
 
 import { DatabaseSwitcher } from "@/components/sidebar/database-switcher"
 import { NavMain } from "@/components/sidebar/nav-main"
@@ -36,6 +36,17 @@ const baseNavItems = [
     title: "Custom Charts",
     url: "/custom-charts",
     icon: LineChart,
+  },
+  // A-share workspace (sub-project ❺) — warehouse-backed analysis pages
+  {
+    title: "Factors",
+    url: "/factors",
+    icon: FlaskConical,
+  },
+  {
+    title: "Backtests",
+    url: "/backtests",
+    icon: History,
   },
   {
     title: "Databases",
