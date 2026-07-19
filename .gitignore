@@ -48,3 +48,4 @@ chat-database/data/*.db
 
 # Test cache
 .deepeval/
+tmp/
