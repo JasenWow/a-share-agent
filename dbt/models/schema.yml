@@ -1,0 +1,121 @@
+version: 2
+
+# 种子（作为 ODS 源的占位）
+seeds:
+  - name: seed_equity_daily
+    description: 种子数据：股票日线行情（demo 用，真实数据由 ETL 入 ODS）
+    config:
+      column_types:
+        trade_date: varchar
+        code: varchar
+        exchange: varchar
+        open: double
+        high: double
+        low: double
+        close: double
+        volume: double
+        amount: double
+        pct_chg: double
+    columns:
+      - name: trade_date
+        tests: [not_null]
+      - name: code
+        tests: [not_null]
+
+  - name: seed_financial_income
+    description: 种子数据：利润表
+    config:
+      column_types:
+        code: varchar
+        exchange: varchar
+        ann_date: varchar
+        end_date: varchar
+        period: varchar
+        update_flag: varchar
+        revenue: double
+        oper_profit: double
+        n_income: double
+        n_income_attr_p: double
+    columns:
+      - name: code
+        tests: [not_null]
+      - name: end_date
+        tests: [not_null]
+
+  - name: seed_index_constituents
+    description: 种子数据：指数成分
+
+models:
+  - name: stg_equity_daily
+    description: 标准化日线数据（类型规范、null 处理）
+    columns:
+      - name: code
+        tests: [not_null]
+      - name: trade_date
+        tests: [not_null]
+
+  - name: stg_financial_income
+    description: 标准化利润表数据
+
+  - name: dwd_equity_daily
+    description: |
+      日线明细宽表。派生：日收益率、VWAP、是否涨停、日内涨跌幅。
+    columns:
+      - name: code
+        tests: [not_null]
+      - name: trade_date
+        tests: [not_null]
+      - name: close
+        tests: [not_null]
+      - name: daily_return
+        description: 日收益率（小数，如 0.005 = 0.5%）
+
+  - name: dwd_financial_quarterly
+    description: |
+      财务季度宽表。取最新修订版本，派生营业利润率、净利率。
+    columns:
+      - name: code
+        tests: [not_null]
+      - name: end_date
+        tests: [not_null]
+      - name: period
+        tests: [not_null]
+      - name: oper_margin_pct
+        description: 营业利润率（%）
+      - name: net_margin_pct
+        description: 净利率（归母，%）
+
+  - name: dws_equity_monthly
+    description: |
+      个股月度汇总。月度 OHLC + 月收益率。
+    columns:
+      - name: code
+        tests: [not_null]
+      - name: year_month
+        tests: [not_null]
+
+  - name: dws_factor_daily
+    description: |
+      每日因子值。动量 20d / 波动率 20d / 换手代理。
+      量化研究的基础表。
+    columns:
+      - name: code
+        tests: [not_null]
+      - name: trade_date
+        tests: [not_null]
+      - name: momentum_20d_pct
+        description: 20 日动量（%）
+      - name: volatility_20d_pct
+        description: 20 日波动率年化（%）
+      - name: avg_volume_20d
+        description: 20 日成交量均值（换手代理）
+
+  - name: ads_strategy_returns
+    description: |
+      策略净值序列（demo）。每月末选 Top-2 动量股等权持有。
+      非投资建议；真实策略交给 backtest-engine。
+    columns:
+      - name: year_month
+        tests: [not_null]
+      - name: code
+        tests: [not_null]

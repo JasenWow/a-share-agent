@@ -1,0 +1,33 @@
+name: a_share_analytics
+version: 1.0.0
+config-version: 2
+
+profile: a_share_analytics
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+target-path: "target"
+clean-targets:
+  - target
+  - dbt_packages
+
+# 分层物化策略
+models:
+  a_share_analytics:
+    staging:
+      +materialized: view
+    dwd:
+      +materialized: table
+      +schema: dwd
+    dws:
+      +materialized: table
+      +schema: dws
+    ads:
+      +materialized: table
+      +schema: ads
+
+seeds:
+  a_share_analytics:
+    +schema: seed

@@ -1,0 +1,5 @@
+target/
+dbt_packages/
+logs/
+# profiles.yml 含本地路径，每人不同
+profiles.yml

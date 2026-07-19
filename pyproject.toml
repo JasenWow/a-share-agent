@@ -23,6 +23,7 @@ dependencies = [
     "deap>=1.4",
     "duckdb>=0.10",
     "exchange_calendars>=4.5",
+    "dbt-duckdb>=1.10.1",
 ]
 
 [dependency-groups]
