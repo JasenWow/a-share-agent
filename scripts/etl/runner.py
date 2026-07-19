@@ -28,6 +28,10 @@ _DOMAIN_REGISTRY = {
     "equity_daily": ("ods.equity_daily", "P0"),
     "index_constituents": ("ods.index_constituents", "P0"),
     "financial_income": ("ods.financial_income", "P1"),
+    # 实验数据入仓（子项目 ❷）：internal-store 快照，P2
+    "factor_experiments": ("ods.factor_experiments", "P2"),
+    "backtest_runs": ("ods.backtest_runs", "P2"),
+    "strategy_hypotheses": ("ods.strategy_hypotheses", "P2"),
 }
 
 

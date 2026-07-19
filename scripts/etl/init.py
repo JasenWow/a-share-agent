@@ -26,15 +26,28 @@ from common.jobs import init_jobs_table  # noqa: E402
 from ods.equity_daily import CATALOG_ENTRY as EQUITY_DAILY_CAT  # noqa: E402
 from ods.index_constituents import CATALOG_ENTRY as INDEX_CAT  # noqa: E402
 from ods.financial_income import CATALOG_ENTRY as INCOME_CAT  # noqa: E402
+from ods.factor_experiments import CATALOG_ENTRY as FACTOR_EXP_CAT  # noqa: E402
+from ods.backtest_runs import CATALOG_ENTRY as BACKTEST_CAT  # noqa: E402
+from ods.strategy_hypotheses import CATALOG_ENTRY as HYPOTH_CAT  # noqa: E402
 
 # 所有已实现的 domain catalog（init 时注册）
-_ALL_CATALOGS = [EQUITY_DAILY_CAT, INDEX_CAT, INCOME_CAT]
+_ALL_CATALOGS = [
+    EQUITY_DAILY_CAT,
+    INDEX_CAT,
+    INCOME_CAT,
+    FACTOR_EXP_CAT,
+    BACKTEST_CAT,
+    HYPOTH_CAT,
+]
 
 # 所有 ODS 视图定义（domain → hive 路径 glob）
 _ODS_VIEWS = {
     "ods_equity_daily": "equity_daily/dt=*/part-*.parquet",
     "ods_index_constituents": "index_constituents/dt=*/part-*.parquet",
     "ods_financial_income": "financial_income/period=*/part-*.parquet",
+    "ods_factor_experiments": "factor_experiments/dt=*/part-*.parquet",
+    "ods_backtest_runs": "backtest_runs/dt=*/part-*.parquet",
+    "ods_strategy_hypotheses": "strategy_hypotheses/dt=*/part-*.parquet",
 }
 
 
@@ -78,6 +91,45 @@ def create_views(conn: duckdb.DuckDBPyConnection) -> None:
             "oper_profit": "DOUBLE",
             "n_income": "DOUBLE",
             "n_income_attr_p": "DOUBLE",
+        },
+        "ods_factor_experiments": {
+            "snapshot_date": "VARCHAR",
+            "factor_id": "INTEGER",
+            "name": "VARCHAR",
+            "expression": "VARCHAR",
+            "operators": "VARCHAR",
+            "data_fields": "VARCHAR",
+            "ic": "DOUBLE",
+            "icir": "DOUBLE",
+            "turnover": "DOUBLE",
+            "sharpe": "DOUBLE",
+            "max_drawdown": "DOUBLE",
+            "universe": "VARCHAR",
+            "period": "VARCHAR",
+            "status": "VARCHAR",
+            "source_experiment_id": "INTEGER",
+            "created_at": "VARCHAR",
+        },
+        "ods_backtest_runs": {
+            "snapshot_date": "VARCHAR",
+            "run_id": "INTEGER",
+            "name": "VARCHAR",
+            "strategy": "VARCHAR",
+            "start_date": "VARCHAR",
+            "end_date": "VARCHAR",
+            "sharpe": "DOUBLE",
+            "max_drawdown": "DOUBLE",
+            "annual_return": "DOUBLE",
+            "created_at": "VARCHAR",
+        },
+        "ods_strategy_hypotheses": {
+            "snapshot_date": "VARCHAR",
+            "experiment_id": "INTEGER",
+            "name": "VARCHAR",
+            "strategy_json": "VARCHAR",
+            "params_json": "VARCHAR",
+            "result_json": "VARCHAR",
+            "created_at": "VARCHAR",
         },
     }
 

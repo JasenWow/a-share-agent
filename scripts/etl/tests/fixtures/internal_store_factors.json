@@ -1,0 +1,5 @@
+[
+  {"id": 1, "name": "momentum_20d", "expression": "close / ts_delay(close, 20) - 1", "hypothesis": "20日动量", "operators": "div,sub,ts_delay", "data_fields": "close", "ic": 0.045, "icir": 0.62, "turnover": 0.38, "sharpe": 1.2, "max_drawdown": -0.18, "universe": "csi300", "period": "2018-01-01~2024-12-31", "walk_forward": "", "status": "active", "source_experiment_id": 0, "created_at": "2026-07-01 10:00:00"},
+  {"id": 2, "name": "value_pe", "expression": "-1 * close / eps", "hypothesis": "低 PE 反转", "operators": "mul,div", "data_fields": "close,eps", "ic": -0.032, "icir": -0.41, "turnover": 0.55, "sharpe": 0.8, "max_drawdown": -0.25, "universe": "csi500", "period": "2018-01-01~2024-12-31", "walk_forward": "", "status": "testing", "source_experiment_id": 5, "created_at": "2026-07-02 14:30:00"},
+  {"error": "simulated mcp internal error"}
+]
