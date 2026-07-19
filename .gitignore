@@ -34,3 +34,17 @@ node_modules
 data/warehouse/meta.db
 data/warehouse/meta.db.wal
 data/warehouse/_logs/
+
+# === chat-database (integrated 2026-07-19) ===
+# Build artifacts
+.next/
+dist/
+
+# chat-database system SQLite (users/sessions/dashboards)
+*.db-journal
+*.db-wal
+*.db-shm
+chat-database/data/*.db
+
+# Test cache
+.deepeval/

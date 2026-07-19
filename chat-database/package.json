@@ -1,0 +1,22 @@
+{
+  "name": "chat-database",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "dev": "bun run --parallel dev:server dev:web",
+    "dev:server": "bun run --filter @chat-database/server dev",
+    "dev:web": "bun run --filter @chat-database/web dev",
+    "build": "bun run --filter '*' build",
+    "db:generate": "bun run --filter @chat-database/server db:generate",
+    "db:migrate": "bun run --filter @chat-database/server db:migrate",
+    "db:seed": "bun run --filter @chat-database/server db:seed",
+    "db:studio": "bun run --filter @chat-database/server db:studio",
+    "test": "bun test",
+    "test:watch": "bun test --watch",
+    "dep-check": "depcruise --config .dependency-cruiser.cjs packages/*/src"
+  },
+  "devDependencies": {
+    "dependency-cruiser": "^17.4.3"
+  }
+}
