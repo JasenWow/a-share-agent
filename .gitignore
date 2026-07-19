@@ -26,3 +26,6 @@ Thumbs.db
 # Output
 out/
 node_modules
+
+# Worktrees (isolated dev workspaces)
+.worktrees/
