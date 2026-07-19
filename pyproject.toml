@@ -21,6 +21,8 @@ dependencies = [
     "pyqlib>=0.9",
     "mlflow>=2.10",
     "deap>=1.4",
+    "duckdb>=0.10",
+    "exchange_calendars>=4.5",
 ]
 
 [dependency-groups]
