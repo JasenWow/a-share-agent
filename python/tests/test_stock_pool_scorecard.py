@@ -7,9 +7,10 @@ from pathlib import Path
 
 import pytest
 
-# Add scorecard script directory to sys.path so we can import it
+# Add scorecard script directory to sys.path so we can import it.
+# python/tests/test_stock_pool_scorecard.py -> repo_root/plugins/...
 _SCRIPT_DIR = (
-    Path(__file__).parent.parent
+    Path(__file__).parent.parent.parent
     / "plugins"
     / "vertical-plugins"
     / "equity-research"

@@ -1,10 +1,10 @@
 {
-  "total_passed": 198,
+  "total_passed": 183,
   "suites": [
     {
       "name": "root-integration",
       "path": "tests",
-      "runner": "root",
+      "runner": "py-aquan",
       "package": null,
       "status": "green",
       "passed": 10,
@@ -13,18 +13,18 @@
     },
     {
       "name": "etl",
-      "path": "scripts/etl/tests",
-      "runner": "root",
+      "path": "etl/tests",
+      "runner": "py-aquan",
       "package": null,
       "status": "green",
-      "passed": 103,
+      "passed": 104,
       "failed": 0,
-      "total": 103
+      "total": 104
     },
     {
       "name": "metrics",
-      "path": "metrics",
-      "runner": "root",
+      "path": "aquan/metrics/tests",
+      "runner": "py-aquan",
       "package": null,
       "status": "green",
       "passed": 16,
@@ -34,7 +34,7 @@
     {
       "name": "notebooks",
       "path": "notebooks",
-      "runner": "root",
+      "runner": "py-aquan",
       "package": null,
       "status": "green",
       "passed": 3,
@@ -73,14 +73,14 @@
       "total": 33
     },
     {
-      "name": "aquan-smoke-and-metrics",
-      "path": "aquan",
+      "name": "aquan-smoke",
+      "path": "aquan/tests",
       "runner": "py-aquan",
       "package": null,
       "status": "green",
-      "passed": 24,
+      "passed": 8,
       "failed": 0,
-      "total": 24
+      "total": 8
     }
   ]
 }

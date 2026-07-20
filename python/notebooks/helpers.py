@@ -15,16 +15,10 @@ def get_internal_store_url() -> str:
 
 def query_mcp(tool_name: str, params: Optional[dict] = None) -> list[dict]:
     """Generic MCP tool call via HTTP POST to internal-store."""
-    payload = json.dumps({
-        "tool": tool_name,
-        "arguments": params or {}
-    }).encode("utf-8")
+    payload = json.dumps({"tool": tool_name, "arguments": params or {}}).encode("utf-8")
 
     req = urllib.request.Request(
-        f"{INTERNAL_STORE_URL}/mcp",
-        data=payload,
-        headers={"Content-Type": "application/json"},
-        method="POST"
+        f"{INTERNAL_STORE_URL}/mcp", data=payload, headers={"Content-Type": "application/json"}, method="POST"
     )
 
     try:
@@ -39,6 +33,7 @@ def query_mcp(tool_name: str, params: Optional[dict] = None) -> list[dict]:
 def get_experiments(limit: int = 100):
     """Fetch experiments from internal-store."""
     import pandas as pd
+
     result = query_mcp("list_experiments", {"limit": limit})
     if not result:
         return pd.DataFrame()
@@ -58,6 +53,7 @@ def get_experiments(limit: int = 100):
 def get_best_strategies(top_k: int = 10):
     """Fetch top strategies by final_nav."""
     import pandas as pd
+
     result = query_mcp("get_best_strategies", {"top_k": top_k})
     if not result:
         return pd.DataFrame()
@@ -76,6 +72,7 @@ def get_best_strategies(top_k: int = 10):
 def get_backtest_results(limit: int = 20):
     """Fetch backtest results."""
     import pandas as pd
+
     result = query_mcp("list_backtest_results", {"limit": limit})
     if not result:
         return pd.DataFrame()
@@ -93,6 +90,7 @@ def get_portfolio(name: str = "default") -> dict:
 def get_episode_summaries():
     """Fetch episode summaries."""
     import pandas as pd
+
     result = query_mcp("list_episode_summaries")
     if not result:
         return pd.DataFrame()

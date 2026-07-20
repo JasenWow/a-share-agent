@@ -38,17 +38,18 @@ PYTHON_ROOT = ROOT / "python"
 #   runner="package"  -> cwd=python/, cmd=`uv run --package <pkg> pytest <path>`
 #   runner="py-aquan" -> cwd=python/, cmd=`uv run pytest <path>`
 TEST_SUITES = [
-    # Phase 0 baseline suites (still in original locations until their phase migrates)
-    ("root-integration", "root", "tests", None),
-    ("etl", "py-aquan", "etl/tests", None),  # moved to python/etl/tests in Phase 3
-    ("metrics", "root", "metrics", None),
-    ("notebooks", "root", "notebooks", None),
-    # MCP servers — moved to python/mcp-servers/ in Phase 2, now run via --package
+    # Phase 4: root-level tests/notebooks moved into python/. All Python
+    # code now lives under python/, so everything uses py-aquan runner.
+    ("root-integration", "py-aquan", "tests", None),
+    ("etl", "py-aquan", "etl/tests", None),
+    ("metrics", "py-aquan", "aquan/metrics/tests", None),
+    ("notebooks", "py-aquan", "notebooks", None),
+    # MCP servers — moved to python/mcp-servers/ in Phase 2, run via --package
     ("akshare-server", "package", "mcp-servers/akshare-server", "aquan-akshare-server"),
     ("tushare-server", "package", "mcp-servers/tushare-server", "aquan-tushare-server"),
     ("internal-store", "package", "mcp-servers/internal-store", "aquan-internal-store-server"),
-    # New aquan public-layer tests (added in Phase 1, live under python/aquan/)
-    ("aquan-smoke-and-metrics", "py-aquan", "aquan", None),
+    # aquan smoke tests + metrics catalog tests (Phase 1+)
+    ("aquan-smoke", "py-aquan", "aquan/tests", None),
 ]
 
 # Known-broken suites (pre-existing, not caused by restructure).

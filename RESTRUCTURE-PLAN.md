@@ -120,12 +120,17 @@ a-share-agents/
 - 更新根 `tests/conftest.py`：移除 `scripts/etl` sys.path 注入
 - **守门**: `cd python && uv run pytest etl/tests/` **104 passed**（比 baseline 103 多 1，因 test_config 加了新测试）；总 **199 tests passed** across 8 suites
 
-### Phase 4 — 迁剩余 Python（notebooks/dbt/tests）
+### Phase 4 — 迁剩余 Python（notebooks/dbt/tests）✅
 
 - `git mv notebooks python/notebooks`
-- `git mv dbt python/dbt`（检查 `profiles.yml` 路径相对化）
-- `git mv tests python/tests`（更新 `conftest.py` sys.path 注入路径）
-- **守门**: 根守门脚本全绿
+- `git mv dbt python/dbt`（`profiles.yml` 路径 `../data/...` → `../../data/...`）
+- `git mv tests python/tests`（`conftest.py` ROOT 改 `parents[2]`；`test_stock_pool_scorecard.py` plugins 路径多 parent 一次）
+- `python/notebooks/test_helpers.py` 改用 `from notebooks.helpers import`（删 sys.path hack）
+- `python/pyproject.toml`：`notebooks` 进 hatch packages；ruff 排除 `*.ipynb`
+- **清理冗余**: 删除原根 `metrics/` 目录（Phase 1 复制后无外部消费者；plugins 里的 `from metrics import` 是同目录引用，与根 metrics/ 包无关）
+- `scripts/check_migration.py`：所有 Python suite 迁移到 `py-aquan` runner；`aquan-smoke-and-metrics` 拆为 `metrics`（aquan/metrics/tests）+ `aquan-smoke`（aquan/tests）
+- **守门**: 重新记录 baseline = 183 tests（Phase 1 复制策略导致的 metrics 双份计数现已去重）；全部 8 suites 绿
+- **dbt 验证**: `dbt parse --project-dir dbt --profiles-dir dbt` 成功
 
 ### Phase 5 — 扁平化 chat-database → `packages/`（最重 PR）
 
@@ -193,7 +198,7 @@ a-share-agents/
 | 0 — 骨架 + 文档 | ✅ 完成 | 56d736f |
 | 1 — Python 骨架 + aquan 公共层 | ✅ 完成 | (phase-1 branch) |
 | 2 — 迁 MCP servers | ✅ 完成 | (phase-2 branch) |
-| 3 — 迁 ETL | ✅ 完成 | (本 commit) |
-| 4 — 迁 notebooks/dbt/tests | ⏳ 待开始 | — |
+| 3 — 迁 ETL | ✅ 完成 | (phase-3 branch) |
+| 4 — 迁 notebooks/dbt/tests | ✅ 完成 | (本 commit) |
 | 5 — 扁平化 chat-database + 建新包 | ⏳ 待开始 | — |
 | 6 — 清理 legacy + 文档收尾 | ⏳ 待开始 | — |

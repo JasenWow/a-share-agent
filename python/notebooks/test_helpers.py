@@ -1,11 +1,8 @@
 """Tests for notebook helpers."""
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent))
-
-from helpers import query_mcp, get_internal_store_url
 import urllib.error  # noqa: F401
+
+from notebooks.helpers import get_internal_store_url, query_mcp
 
 
 class TestGetInternalStoreUrl:
@@ -31,7 +28,14 @@ class TestQueryMcp:
 
 class TestHelpersImport:
     def test_imports_work(self):
-        from helpers import get_experiments, get_best_strategies, get_backtest_results, get_portfolio, get_episode_summaries
+        from notebooks.helpers import (
+            get_backtest_results,
+            get_best_strategies,
+            get_episode_summaries,
+            get_experiments,
+            get_portfolio,
+        )
+
         assert callable(get_experiments)
         assert callable(get_best_strategies)
         assert callable(get_backtest_results)

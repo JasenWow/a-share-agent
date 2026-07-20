@@ -21,10 +21,10 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-# Ship the aquan/ public layer + the etl/ domain package.
-# Other top-level packages (notebooks/, dbt/, tests/) join as they migrate
-# in Phase 4.
-packages = ["aquan", "etl"]
+# Ship the aquan/ public layer + the etl/ domain package + notebooks helpers.
+# dbt/ is a SQL project (not a Python package), tests/ is test-only — neither
+# ships in the wheel.
+packages = ["aquan", "etl", "notebooks"]
 
 [dependency-groups]
 dev = [
@@ -53,6 +53,10 @@ environments = ["sys_platform != 'win32'"]
 
 [tool.ruff]
 line-length = 120
+# Skip linting/formatting Jupyter notebooks — they're exploratory code with
+# different conventions. Add `extend-include = ["*.ipynb"]` later if/when
+# we want notebook linting.
+extend-exclude = ["*.ipynb"]
 
 [tool.ruff.format]
 quote-style = "double"
