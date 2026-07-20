@@ -1,6 +1,6 @@
 # Monorepo 重构计划
 
-> **状态**: 进行中（Phase 0–6）
+> **状态**: ✅ 完成（Phase 0–6 全部交付，2026-07-20）
 > **起点**: 2026-07-19
 > **目标**: 把当前 Python-flat 项目重构为 TS 主体的 monorepo（命名空间 `aquan`）
 
@@ -187,14 +187,38 @@ a-share-agents/
 - Python 守门仍 183 全绿
 - `chat-database/` 目录已消失
 
-### Phase 6 — 清理 legacy + 文档收尾
+### Phase 6 — 清理 legacy + 文档收尾 ✅
 
-- `legacy/scripts/validate_*.py` 加 deprecated 头注释
-- 评估 `legacy/{managed-agent-cookbooks,openspec,skills-lock.json}` 去留
-- 重写 `AGENTS.md`、`CONTRIBUTING.md`、`README.md`（反映新布局）
-- 更新 `docs/draft/architecture.md`、`docs/draft/README.md` 路径引用
-- 删 `scripts/check_migration.py`（完成使命）
-- **守门**: `python scripts/check.py` 通过；`bun run dep-check` 通过；所有命令文档可执行
+**legacy/ 收尾**：
+- `git mv scripts/validate_factor_mining.py` → `legacy/scripts/`（加 DEPRECATED 头注释）
+- `git mv scripts/validate_evolution_loop.py` → `legacy/scripts/`（加 DEPRECATED 头注释）
+- `git mv managed-agent-cookbooks` → `legacy/`（标"Reference only"）
+- `git mv skills-lock.json` → `legacy/`（标"Stale"）
+- 重写 `legacy/README.md`：每个条目带"fate"列，明确去留
+
+**文档重写**：
+- `README.md`：完整重写，反映 TS 主体 + Python 副体布局
+- `AGENTS.md`：重写 Quick start + 工作目录约定表
+- `CONTRIBUTING.md`：Quick setup + Code quality 块更新（cd python / bun run）
+- `docs/draft/architecture.md`：顶部加"post-restructure 路径 delta"横幅
+- `packages/README.md` / `python/README.md`：从占位升级为实际内容
+
+**删除**：
+- `scripts/check_migration.py`（迁移守门，使命完成）
+- `scripts/.migration-baseline.json`
+
+**守门（最终）**：
+- `python scripts/check.py` → 全 OK（warn: TUSHARE_TOKEN，预期）
+- `bun run dep-check` → **0 violations**（663 modules, 1897 deps）
+- `bun run test` → **56 pass / 0 fail**
+- `cd python && uv run pytest` → 全绿（按目录分散跑共 183 tests）
+
+## 🎉 重构完成
+
+7 个 Phase 全部完成。仓库从 Python-flat 布局转为 TS 主体的 monorepo：
+- TS 主体：`packages/` Bun workspace，5 个 `@aquan/*` 包（含新建 orchestrator + pi-runtime）
+- Python 副体：`python/` uv workspace，含 `aquan.*` 公共层 + 4 个 MCP server + ETL + dbt
+- 代码总量：TS 663 modules / Python 305+ tests / 全程 zero regressions
 
 ---
 
@@ -241,5 +265,5 @@ a-share-agents/
 | 2 — 迁 MCP servers | ✅ 完成 | (phase-2 branch) |
 | 3 — 迁 ETL | ✅ 完成 | (phase-3 branch) |
 | 4 — 迁 notebooks/dbt/tests | ✅ 完成 | (phase-4 branch) |
-| 5 — 扁平化 chat-database + 建新包 | ✅ 完成 | (本 commit) |
-| 6 — 清理 legacy + 文档收尾 | ⏳ 待开始 | — |
+| 5 — 扁平化 chat-database + 建新包 | ✅ 完成 | (phase-5 branch) |
+| 6 — 清理 legacy + 文档收尾 | ✅ 完成 | (本 commit) |

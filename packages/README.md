@@ -1,28 +1,33 @@
 # packages/
 
-Bun workspace（TS 主体）。重构完成后本目录包含全部 TypeScript/JavaScript 代码。
+Bun workspace — TypeScript primary side of the aquan monorepo.
 
-## 状态
+## Packages
 
-🚧 **建设中** — 见根目录 `RESTRUCTURE-PLAN.md`
-
-当前为空目录。Phase 5 扁平化 `chat-database/` 后填充：
-
-| 包 | 名称 | 来源 |
+| Package | Name | Purpose |
 |---|---|---|
-| `core/` | `@aquan/core` | 合并自 `@aquan/core` + 新增 work/types/utils |
-| `orchestrator/` | `@aquan/orchestrator` | 新建（Symphony-like 编排引擎） |
-| `pi-runtime/` | `@aquan/pi-runtime` | 新建（Pi agent runtime 适配层） |
-| `server/` | `@aquan/server` | 原 `@chat-database/server`（Hono + Bun） |
-| `web/` | `@aquan/web` | 原 `@chat-database/web`（Next.js 15） |
+| `core/` | `@aquan/core` | Shared types, errors, constants, utils. Dependency-free foundation. |
+| `orchestrator/` | `@aquan/orchestrator` | Symphony-like work orchestration engine. Polls trackers, runs work via an `AgentRuntime`, exposes state over HTTP. |
+| `pi-runtime/` | `@aquan/pi-runtime` | `AgentRuntime` adapter backed by the Pi SDK. Skeleton only — concrete bindings land in a follow-up spec. |
+| `server/` | `@aquan/server` | Hono + Bun API server, Drizzle ORM, multi-DB adapters (sqlite/postgres/duckdb). |
+| `web/` | `@aquan/web` | Next.js 15 dashboard (shadcn/ui + Tailwind v4 + recharts). |
 
-## 命令约定（迁移完成后）
+## Common commands (from repo root)
 
 ```bash
-# 在仓库根目录
-bun install
-bun run dev          # 启动 web + server
-bun run build
-bun test
-bun run dep-check
+bun install                  # workspace-wide install
+bun run dev                  # @aquan/server (3001) + @aquan/web (3000)
+bun run build                # build every package
+bun run test                 # bun test across all packages
+bun run typecheck            # tsc --noEmit across all packages
+bun run dep-check            # dependency-cruiser boundary rules
 ```
+
+## Boundary rules
+
+Enforced by `/.dependency-cruiser.cjs`:
+
+- `@aquan/core` depends on nothing internal.
+- `@aquan/{server, web, orchestrator, pi-runtime}` may depend on `@aquan/core`.
+- `@aquan/{server, web}` must NOT import each other.
+- `@aquan/{orchestrator, pi-runtime}` must NOT depend on `@aquan/{server, web}`.

@@ -1,15 +1,25 @@
-"""End-to-end validation: GP factor mining with real data via MCP.
+"""DEPRECATED — moved to legacy/ during Phase 6 of the monorepo restructure.
 
-Three-phase pipeline:
-  Phase 1: Fetch OHLCV via MCP (qlib-server) → compute forward returns
-  Phase 2: GP evolution with vectorized numpy evaluation (no MCP)
-  Phase 3: Register top factors via MCP (internal-store)
+End-to-end validation: GP factor mining with real data via MCP.
 
-Usage:
-    # Prerequisites: qlib-server on :8003, internal-store on :8002
-    # First time: set --init-data to download qlib CN data
-    uv run python scripts/validate_factor_mining.py --init-data
-    uv run python scripts/validate_factor_mining.py
+This script reaches into plugins/vertical-plugins/market-data/skills/
+via sys.path hacks and depends on the pre-restructure flat layout. The
+migration to the python/ uv workspace (Phases 1-5) broke those coupling
+points. Replacement: a proper orchestrator-driven E2E test once the
+agent-orchestration spec lands. Do not run as-is.
+
+Original docstring kept for reference:
+
+    Three-phase pipeline:
+      Phase 1: Fetch OHLCV via MCP (qlib-server) → compute forward returns
+      Phase 2: GP evolution with vectorized numpy evaluation (no MCP)
+      Phase 3: Register top factors via MCP (internal-store)
+
+    Usage:
+        # Prerequisites: qlib-server on :8003, internal-store on :8002
+        # First time: set --init-data to download qlib CN data
+        uv run python scripts/validate_factor_mining.py --init-data
+        uv run python scripts/validate_factor_mining.py
 """
 
 from __future__ import annotations

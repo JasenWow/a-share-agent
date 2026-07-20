@@ -1,6 +1,15 @@
 # Architecture
 
 > A-Share Agents' static architecture: tech stack, project layout, four-layer architecture, dependency rules, data flow, and component catalogs.
+>
+> **Note (2026-07-20):** paths below reflect the **pre-restructure** layout. After the 7-phase monorepo restructure (see `../../RESTRUCTURE-PLAN.md`), all Python code moved under `python/` and TS code lives under `packages/`. Specific deltas:
+> - `mcp-servers/` → `python/mcp-servers/` (packages renamed `aquan-*-server`)
+> - `scripts/etl/` → `python/etl/` (flat layout, `common/` eliminated)
+> - `notebooks/`, `tests/` → `python/notebooks/`, `python/tests/`
+> - new `python/aquan/` public layer (`core`, `utils`, `metrics`, `cli`)
+> - new `packages/` Bun workspace (`@aquan/{core, orchestrator, pi-runtime, server, web}`)
+>
+> The four-layer model (L3→L0), boundary rules, and agent/skill catalogs below are unchanged. This doc is pending a refresh.
 
 ## Tech Stack
 

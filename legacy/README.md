@@ -1,23 +1,21 @@
 # legacy/
 
-无明确归属的待整理散件暂存区。重构期间作为中转，Phase 6 完成去留评估。
+Items parked here have been **moved out of the active code paths** during the monorepo restructure. Each has a documented fate. This directory should shrink over time — nothing should live here indefinitely.
 
-## 状态
+## Status by item
 
-🚧 **建设中** — 见根目录 `RESTRUCTURE-PLAN.md`
-
-## 预期内容（Phase 1–4 迁入，Phase 6 评估去留）
-
-| 路径 | 来源 | 去留倾向 |
+| Path | Origin | Fate |
 |---|---|---|
-| `scripts/validate_factor_mining.py` | 原 `scripts/` | **deprecated** — E2E，sys.path 伸手进 plugins/，耦合重 |
-| `scripts/validate_evolution_loop.py` | 原 `scripts/` | **deprecated** — 同上 |
-| `managed-agent-cookbooks/` | 原根目录 | **评估中** — 等待归属决策（进 plugins/ 或保留） |
-| `openspec/` | 原根目录 | **评估中** — 是否复活 openspec 工作流 |
-| `skills-lock.json` | 原根目录 | **重新生成** — 由 `scripts/sync-agent-skills.py` 重生 |
+| `scripts/validate_factor_mining.py` | root `scripts/` | **Deprecated.** E2E driver that reached into `plugins/vertical-plugins/market-data/skills/` via sys.path hacks. The Phase 3 migration broke those couplings. Replacement: an orchestrator-driven E2E test (TBD via agent-orchestration spec). Do not run as-is. |
+| `scripts/validate_evolution_loop.py` | root `scripts/` | **Deprecated.** Same story as above; reached into `plugins/vertical-plugins/simulation/skills/`. Replacement: same orchestrator-driven test. |
+| `managed-agent-cookbooks/` | root | **Reference only.** Deployment cookbooks (`agent.yaml`) for managed-agent deployments of equity-researcher / market-monitor / portfolio-manager. Still useful as documentation; will be either revived under `docs/` or moved into each agent's plugin folder in a follow-up. |
+| `openspec-content/` | root `openspec/` | **Historical.** Two archived openspec changes (factor-mining-mvp, signal-eval-redesign) from 2026-05. Workflow superseded by `docs/superpowers/specs/`. Kept for provenance; safe to delete after 2026-Q4. |
+| `openspec-package.json` | root `package.json` | **Historical.** npm config that existed only to install `@fission-ai/openspec`. Deleted from active tree. |
+| `openspec-package-lock.json` | root `package-lock.json` | **Historical.** Same as above. |
+| `skills-lock.json` | root | **Stale.** Output of the pre-restructure skill sync. Regenerate via `scripts/sync-agent-skills.py` if the skills workflow is revived. |
 
-## 原则
+## Principle
 
-- 每个进入 `legacy/` 的文件都要在本 README 标注去留倾向
-- `deprecated` 文件加文件头注释说明替代方案（如有）
-- `legacy/` 不是垃圾桶 —— Phase 6 必须清空或正式纳入结构
+- Every entry has a documented fate in this README.
+- `deprecated` files carry a DEPRECATED banner in their module docstring.
+- `legacy/` is **not** a long-term home — Phase 6 is the last phase that adds here. Future work either revives items (and moves them out) or deletes them.

@@ -1,14 +1,24 @@
 #!/usr/bin/env python3
 """
+DEPRECATED — moved to legacy/ during Phase 6 of the monorepo restructure.
+
 End-to-end validation of the meta-agent evolution loop.
 
-Runs 10 iterations of the evolution loop against real A-share AI sector data.
-Validates: hypothesis generation, simulation, experiment recording, doom loop detection.
+This script reaches into plugins/vertical-plugins/simulation/skills/ via
+sys.path hacks and depends on the pre-restructure flat layout. The
+migration to the python/ uv workspace (Phases 1-5) broke those coupling
+points. Replacement: a proper orchestrator-driven E2E test once the
+agent-orchestration spec lands. Do not run as-is.
 
-Usage:
-    uv run python scripts/validate_evolution_loop.py
+Original docstring kept for reference:
 
-Requires: internal-store MCP server running on port 8002, akshare on port 8000.
+    Runs 10 iterations of the evolution loop against real A-share AI sector data.
+    Validates: hypothesis generation, simulation, experiment recording, doom loop detection.
+
+    Usage:
+        uv run python scripts/validate_evolution_loop.py
+
+    Requires: internal-store MCP server running on port 8002, akshare on port 8000.
 """
 
 import json

@@ -1,18 +1,26 @@
-# Contributing to A-Share Agents
+# Contributing to aquan
 
-> Engineering guide. See `docs/draft/` for detailed references.
+> Engineering guide for human contributors and AI agents. See `docs/draft/` for detailed references and `RESTRUCTURE-PLAN.md` for the migration history.
 
-## Quick Setup
+## Quick setup
 
 ```bash
-uv sync
-uv run python scripts/check.py        # Must pass before any work
-cp .env.example .env && $EDITOR .env  # Add TUSHARE_TOKEN
-
-# Start MCP servers
+# Python side (all Python under python/)
+cd python
+uv sync                                # installs aquan + etl + dev deps
+uv run pytest                          # full Python test suite
+# Start MCP servers (each in its own terminal):
 uv run uvicorn mcp-servers.akshare-server.server:mcp_app --port 8000 &
 TUSHARE_TOKEN=xxx uv run uvicorn mcp-servers.tushare-server.server:mcp_app --port 8001 &
 uv run uvicorn mcp-servers.internal-store.server:mcp_app --port 8002 &
+
+# TS side (from repo root)
+bun install
+bun run dev                            # @aquan/server (3001) + @aquan/web (3000)
+
+# Repo-level check (from repo root, not python/)
+cp .env.example .env && $EDITOR .env   # add TUSHARE_TOKEN
+python scripts/check.py                # must pass before any work
 ```
 
 ## Branching
@@ -31,10 +39,21 @@ Example: `feat: add northbound flow MCP tool (#42)`
 
 ## Code Quality
 
+Python side (from `python/`):
+
 ```bash
+cd python
 uv run ruff check . && uv run ruff format .  # Lint + format
-uv run pytest                                # Unit tests
-uv run pytest -m integration                 # Integration (servers must run)
+uv run pytest                                 # full Python test suite
+uv run pytest -m "integration"                # Integration (servers must run)
+```
+
+TS side (from repo root):
+
+```bash
+bun run typecheck        # tsc --noEmit across all packages
+bun run test             # bun test across all packages
+bun run dep-check        # dependency-cruiser boundary rules
 ```
 
 **Rules (zero tolerance)**:
@@ -64,16 +83,19 @@ L1  market-data                      Data fetch, factor compute, preprocess
     trading-strategy                  Backtest, signals, risk control
     simulation                        Trading simulator, experiments
     market-monitor                    Breadth, northbound
-L0  akshare-server (8000)            Real-time quotes
-    tushare-server (8001)             Historical + financials
-    internal-store (8002)             Cache + experiments + memory
+L0  aquan-akshare-server (8000)         Real-time quotes
+    aquan-tushare-server (8001)         Historical + financials
+    aquan-internal-store-server (8002)  Cache + experiments + memory
+    aquan-qlib-server (8003)            Qlib quant engine
 ```
+
+All L0 servers live under `python/mcp-servers/` (uv workspace members, package names `aquan-*-server`).
 
 ## Boundary Rules (enforced by `scripts/check.py`)
 
 | Rule | Statement |
 |------|-----------|
-| **R1** | MCP servers (`mcp-servers/`) must not import Agent or Skill code |
+| **R1** | MCP servers (`python/mcp-servers/`) must not import Agent or Skill code |
 | **R2** | Skills must not import or reference Agent code |
 | **R3** | Agents may reference Skills but **never modify** Skill source files |
 | **R4** | Each MCP server is self-contained — no cross-server imports |
@@ -93,10 +115,10 @@ skills/<name>/
 ├── prompt.md         # Execution prompt template
 └── scripts/          # Standalone Python (invoked via uv run)
 
-mcp-servers/<name>/
-├── server.py         # FastMCP @mcp.tool() functions
-├── pyproject.toml    # Dependencies
-└── test_server.py    # Co-located tests
+mcp-servers/<name>/               # python/mcp-servers/<name>/
+├── server.py                     # FastMCP @mcp.tool() functions
+├── pyproject.toml                # Dependencies (workspace member: name = "aquan-<name>-server")
+└── test_server.py                # Co-located tests
 ```
 
 ## MCP Tool Pattern
