@@ -1,0 +1,21 @@
+{
+  "name": "@aquan/orchestrator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "build": "bun build src/index.ts --outdir dist --target bun",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@aquan/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.4",
+    "typescript": "^5"
+  }
+}

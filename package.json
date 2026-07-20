@@ -1,5 +1,23 @@
 {
-  "dependencies": {
-    "@fission-ai/openspec": "^1.3.1"
+  "name": "aquan",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "dev": "bun run --parallel dev:server dev:web",
+    "dev:server": "bun run --filter @aquan/server dev",
+    "dev:web": "bun run --filter @aquan/web dev",
+    "build": "bun run --filter '*' build",
+    "typecheck": "bun run --filter '*' typecheck",
+    "db:generate": "bun run --filter @aquan/server db:generate",
+    "db:migrate": "bun run --filter @aquan/server db:migrate",
+    "db:seed": "bun run --filter @aquan/server db:seed",
+    "db:studio": "bun run --filter @aquan/server db:studio",
+    "test": "bun test",
+    "test:watch": "bun test --watch",
+    "dep-check": "depcruise --config .dependency-cruiser.cjs packages/*/src"
+  },
+  "devDependencies": {
+    "dependency-cruiser": "^17.4.3"
   }
 }

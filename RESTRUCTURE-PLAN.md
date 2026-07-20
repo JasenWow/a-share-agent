@@ -132,19 +132,60 @@ a-share-agents/
 - **守门**: 重新记录 baseline = 183 tests（Phase 1 复制策略导致的 metrics 双份计数现已去重）；全部 8 suites 绿
 - **dbt 验证**: `dbt parse --project-dir dbt --profiles-dir dbt` 成功
 
-### Phase 5 — 扁平化 chat-database → `packages/`（最重 PR）
+### Phase 5 — 扁平化 chat-database → `packages/`（最重 PR）✅
 
-- `git mv chat-database/packages/{web,server,shared} packages/`
-- `git mv chat-database/{bun.lock,tsconfig.base.json,.dependency-cruiser.cjs}` → 根
-- `git mv chat-database/bunfig.toml packages/server/bunfig.toml`
-- 合并 `chat-database/package.json` scripts 到根 `package.json`
-- **建 `packages/core/`**：吸收 shared 内容 + 加 `src/{types,work,utils,schemas}/`、`errors.ts`、`constants.ts`
-- **建 `packages/orchestrator/`** 骨架（用 memory tracker 跑通三态流转）
-- **建 `packages/pi-runtime/`** 骨架（含 TODO，等 Pi SDK API 验证）
-- 重命名 `@chat-database/{server,web}` → `@aquan/{server,web}`
-- 全局替换 import：`@chat-database/shared` → `@aquan/core`
+**清理根目录**：
+- `git mv openspec legacy/openspec-content`（移走历史 openspec 工具）
+- `git mv package.json legacy/openspec-package.json`（旧 npm 配置）
+- `git mv package-lock.json legacy/openspec-package-lock.json`
+
+**扁平化 chat-database**：
+- `git mv chat-database/packages/{web,server,shared}` → `packages/{web,server,core-temp}`
+- `packages/core-temp` → `packages/core`（shared → core 重命名）
+- `git mv chat-database/{bun.lock, tsconfig.base.json, .dependency-cruiser.cjs}` → 根
+- `git mv chat-database/{.env.example, CLAUDE.md, README.md, contributing/}` → `docs/` 或根
 - 删除空 `chat-database/` 目录
-- **守门**: `bun install` + `bun test` + `bun run build` + `bun run dep-check` 全绿；根守门脚本全绿
+
+**新根 package.json**：Bun workspace 根（`workspaces: ["packages/*"]`），合并 chat-database scripts（dev/build/db:*/test/dep-check）
+
+**包重命名**：
+- `@chat-database/shared` → `@aquan/core`
+- `@chat-database/server` → `@aquan/server`
+- `@chat-database/web` → `@aquan/web`
+- 全局替换 import `@chat-database/shared` → `@aquan/core`（18 个源文件）
+
+**`.dependency-cruiser.cjs` 升级**：新增 `no-core-to-impl`（core 不依赖 server/web/orchestrator/pi-runtime）+ `no-runtime-to-app`（orchestrator/pi-runtime 不依赖 server/web）
+
+**`packages/core/` 扩展**（吸收 shared + 加新内容）：
+- `types/`：加 `market.ts`（Ticker/Universe/FactorName）、`backtest.ts`（BacktestResult）
+- `work/`：新建 `work-item.ts`（WorkItem/RunState/TrackedWork）、`agent-event.ts`（AgentEvent/RunTokens）
+- `constants/`：升级为目录模块（含原 ai-providers + 新 MCP_PORTS/SERVER_PORT/RUN_STATE_META）
+- `errors.ts`：AquanError 体系（含 WorkItemNotFound/AgentRuntimeError）
+- `utils/`：dates.ts（nowIso/normalizeDate）、ids.ts（workId/sessionId）
+
+**`packages/orchestrator/` 新建**（Symphony-like 编排引擎骨架）：
+- `orchestrator.ts`：主 poll-run-record 循环
+- `agent-runner.ts`：单 WorkItem 的 turn loop（调 AgentRuntime，最多 N 轮）
+- `state-store.ts`：TrackedWork 内存存储 + 状态转换
+- `presenter.ts`：state → HTTP response（counts + per-state lists）
+- `http.ts`：Bun.serve 暴露 `/api/v1/state`、`/api/v1/work/:id`、`/api/v1/tick`
+- `prompt-builder.ts`：初始 prompt + continuation guidance
+- `workspace.ts`：per-WorkItem 工作目录
+- `runtime.ts`：AgentRuntime 接口 + StubRuntime（测试用）
+- `trackers/`：Tracker 接口 + MemoryTracker + FactorMiningTracker/FreeExplorationTracker stubs
+- `orchestrator.test.ts`：4 个 smoke 测试（prompt 构建 + tick 流转 + state 投影 + 空循环）
+
+**`packages/pi-runtime/` 新建**（Pi agent runtime 适配层骨架）：
+- `runtime.ts`：PiRuntime（implements AgentRuntime）
+- `session.ts`：PiSession（implements AgentSession）
+- `events.ts`：Pi SDK 事件 → AgentEvent 转换器
+- `tools.ts`：MCP 工具注册接口 + NullToolRegistration（bootstrap）
+
+**守门**：
+- `bun run test` → **56 tests pass**（15 core + 4 orchestrator + 37 server）
+- `bun run dep-check` → **0 violations**（663 modules, 1897 deps）
+- Python 守门仍 183 全绿
+- `chat-database/` 目录已消失
 
 ### Phase 6 — 清理 legacy + 文档收尾
 
@@ -199,6 +240,6 @@ a-share-agents/
 | 1 — Python 骨架 + aquan 公共层 | ✅ 完成 | (phase-1 branch) |
 | 2 — 迁 MCP servers | ✅ 完成 | (phase-2 branch) |
 | 3 — 迁 ETL | ✅ 完成 | (phase-3 branch) |
-| 4 — 迁 notebooks/dbt/tests | ✅ 完成 | (本 commit) |
-| 5 — 扁平化 chat-database + 建新包 | ⏳ 待开始 | — |
+| 4 — 迁 notebooks/dbt/tests | ✅ 完成 | (phase-4 branch) |
+| 5 — 扁平化 chat-database + 建新包 | ✅ 完成 | (本 commit) |
 | 6 — 清理 legacy + 文档收尾 | ⏳ 待开始 | — |

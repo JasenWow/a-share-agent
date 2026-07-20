@@ -10,7 +10,7 @@ Bun workspace（TS 主体）。重构完成后本目录包含全部 TypeScript/J
 
 | 包 | 名称 | 来源 |
 |---|---|---|
-| `core/` | `@aquan/core` | 合并自 `@chat-database/shared` + 新增 work/types/utils |
+| `core/` | `@aquan/core` | 合并自 `@aquan/core` + 新增 work/types/utils |
 | `orchestrator/` | `@aquan/orchestrator` | 新建（Symphony-like 编排引擎） |
 | `pi-runtime/` | `@aquan/pi-runtime` | 新建（Pi agent runtime 适配层） |
 | `server/` | `@aquan/server` | 原 `@chat-database/server`（Hono + Bun） |
