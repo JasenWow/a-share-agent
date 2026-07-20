@@ -1,0 +1,53 @@
+[project]
+name = "aquan-python"
+version = "0.1.0"
+description = "Python side of aquan: MCP servers, ETL, metrics, dbt"
+readme = "README.md"
+requires-python = ">=3.10,<3.13"
+# Phase 1: only the minimal deps that the aquan public layer actually imports.
+# Heavy deps (pyqlib, mlflow, jupyterlab, dbt-duckdb, akshare, tushare, etc.)
+# are added back incrementally in Phase 2 (mcp-servers), Phase 3 (etl),
+# Phase 4 (notebooks/dbt). Keeping Phase 1 lean makes the gate fast.
+dependencies = [
+    "pyarrow>=14.0",
+    "requests>=2.31",
+    "pyyaml>=6.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+# Ship the aquan/ package and the top-level project modules (etl/, etc. as
+# they migrate in during Phase 3+). For Phase 1 only aquan/ exists.
+packages = ["aquan"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.4",
+]
+
+# Phase 1: workspace has no members yet (MCP servers arrive in Phase 2).
+# Empty members list keeps this a standalone project during the transition.
+[tool.uv.workspace]
+members = []
+
+[tool.uv]
+environments = ["sys_platform != 'win32'"]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: marks tests that need MCP servers running",
+    "e2e: marks end-to-end tests with fixture data",
+]
+testpaths = ["aquan", "tests"]

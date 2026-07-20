@@ -73,16 +73,20 @@ a-share-agents/
 - 写 `RESTRUCTURE-PLAN.md`、`python/README.md`、`packages/README.md`、`legacy/README.md`
 - 建空目录：`python/`、`packages/`、`legacy/`
 - 写 `scripts/check_migration.py`（跑所有现有测试，记录 baseline）
-- **守门**: 守门脚本在旧布局下基线测试全绿
+- **守门**: 守门脚本在旧布局下基线测试全绿 ✅ (174 tests)
 
-### Phase 1 — Python 骨架 + aquan 公共层
+### Phase 1 — Python 骨架 + aquan 公共层 ✅
 
-- 建 `python/pyproject.toml`（workspace 根，aquan.* 命名）
-- 建 `python/aquan/{core,utils,metrics,cli}/` 空骨架 + `__init__.py`
-- `git mv metrics/* python/aquan/metrics/`（含 test）
-- 抽 `etl/common/mcp_client.py` → `python/aquan/utils/http.py`
-- 抽 `etl/common/parquet_writer.py` → `python/aquan/utils/io.py`
-- **守门**: `cd python && uv sync && uv run pytest aquan/` 绿；根守门脚本全绿
+- 建 `python/pyproject.toml`（workspace 根，aquan.* 命名，Phase 1 最小依赖）
+- 建 `python/aquan/{core,utils,metrics,cli}/` 骨架 + `__init__.py`
+- 复制 `metrics/*` → `python/aquan/metrics/`（原位置保留，Phase 3 才切 import）
+- 复制 `etl/common/mcp_client.py` → `python/aquan/utils/http.py`（用 `aquan.core.config`）
+- 复制 `etl/common/parquet_writer.py` → `python/aquan/utils/io.py`
+- 抽 `meta_fields.params_hash` → `python/aquan/utils/hashing.py`
+- 新增 `python/aquan/{core/config,core/errors,utils/dates,utils/logging,cli/main}.py`
+- 新增 `python/aquan/tests/test_smoke.py`（8 个骨架守门测试）
+- **策略**: 复制 + re-export（原位置保持，Phase 3 迁 ETL 时才切 import）
+- **守门**: `cd python && uv run pytest aquan/` 24 tests 全绿 ✅；根守门 174 全绿 ✅
 
 ### Phase 2 — 迁 4 个 MCP servers（每 server 一个 commit）
 
@@ -171,8 +175,8 @@ a-share-agents/
 
 | Phase | 状态 | PR |
 |---|---|---|
-| 0 — 骨架 + 文档 | 🚧 进行中 | — |
-| 1 — Python 骨架 + aquan 公共层 | ⏳ 待开始 | — |
+| 0 — 骨架 + 文档 | ✅ 完成 | 56d736f |
+| 1 — Python 骨架 + aquan 公共层 | ✅ 完成 | (本 commit) |
 | 2 — 迁 MCP servers | ⏳ 待开始 | — |
 | 3 — 迁 ETL | ⏳ 待开始 | — |
 | 4 — 迁 notebooks/dbt/tests | ⏳ 待开始 | — |
