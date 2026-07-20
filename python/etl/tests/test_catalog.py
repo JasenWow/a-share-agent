@@ -3,7 +3,7 @@
 import duckdb
 import pytest
 
-from common.catalog import register, get, list_all, init_catalog
+from etl.catalog import register, get, list_all, init_catalog
 
 
 @pytest.fixture()

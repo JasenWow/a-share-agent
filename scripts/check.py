@@ -206,14 +206,14 @@ def check_warehouse() -> list[str]:
     if not wh.exists():
         issues.append(
             f"INFO: {wh} not initialized "
-            f"(run `uv run python -m scripts.etl.init`)"
+            f"(run `cd python && uv run python -m etl.init`)"
         )
         return issues
     meta_db = wh / "meta.db"
     if not meta_db.exists():
         issues.append(
             f"WARN: {meta_db} missing "
-            f"(run `uv run python -m scripts.etl.init`)"
+            f"(run `cd python && uv run python -m etl.init`)"
         )
     return issues
 

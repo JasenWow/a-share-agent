@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
-from ods.factor_experiments import (
+from etl.ods.factor_experiments import (
     DOMAIN,
     PARTITION_COL,
     SOURCE_MCP,
@@ -74,8 +74,8 @@ def test_transform_numeric_fields():
 
 def test_run_ok(tmp_path):
     raw = _load()
-    with patch("ods.factor_experiments.mcp_client.call", return_value=raw):
-        with patch("ods.factor_experiments.MIN_ROWS", 1):
+    with patch("etl.ods.factor_experiments.mcp_client.call", return_value=raw):
+        with patch("etl.ods.factor_experiments.MIN_ROWS", 1):
             result = run(date="20260718", ods_root=tmp_path)
     assert result["status"] == "ok"
     assert result["rows"] == 2
@@ -86,7 +86,7 @@ def test_run_ok(tmp_path):
 def test_run_extract_failure_returns_status(tmp_path):
     """MCP 返回 error 时，status=extract_failed。"""
     with patch(
-        "ods.factor_experiments.mcp_client.call",
+        "etl.ods.factor_experiments.mcp_client.call",
         return_value=[{"error": "internal-store down"}],
     ):
         result = run(date="20260718", ods_root=tmp_path)

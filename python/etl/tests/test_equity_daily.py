@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
-from ods.equity_daily import (
+from etl.ods.equity_daily import (
     DOMAIN,
     PARTITION_COL,
     SOURCE_MCP,
@@ -106,7 +106,7 @@ def test_transform_skips_error_rows():
 def test_run_quality_failed_when_too_few_rows(tmp_path):
     """行数 <4000（生产阈值）时阻断，不写文件。"""
     raw = _load_fixture()  # 只 3 行
-    with patch("ods.equity_daily.mcp_client.call", return_value=raw):
+    with patch("etl.ods.equity_daily.mcp_client.call", return_value=raw):
         result = run("20260717", ods_root=tmp_path)
     assert result["status"] == "quality_failed"
     pq_file = tmp_path / "equity_daily" / "dt=2026-07-17" / "part-0.parquet"
@@ -116,8 +116,8 @@ def test_run_quality_failed_when_too_few_rows(tmp_path):
 def test_run_ok_with_lowered_threshold(tmp_path):
     """端到端：mock MCP + 降低 quality 阈值验证落地。"""
     raw = _load_fixture()
-    with patch("ods.equity_daily.mcp_client.call", return_value=raw):
-        with patch("ods.equity_daily.MIN_DAILY_ROWS", 1):
+    with patch("etl.ods.equity_daily.mcp_client.call", return_value=raw):
+        with patch("etl.ods.equity_daily.MIN_DAILY_ROWS", 1):
             result = run("20260717", ods_root=tmp_path)
     assert result["status"] == "ok"
     assert result["rows"] == 3
@@ -127,6 +127,6 @@ def test_run_ok_with_lowered_threshold(tmp_path):
 
 def test_run_extract_failed_returns_error(tmp_path):
     """MCP 返回 error 时 status=extract_failed。"""
-    with patch("ods.equity_daily.mcp_client.call", return_value=[{"error": "rate limited"}]):
+    with patch("etl.ods.equity_daily.mcp_client.call", return_value=[{"error": "rate limited"}]):
         result = run("20260717", ods_root=tmp_path)
     assert result["status"] == "extract_failed"

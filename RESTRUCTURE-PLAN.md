@@ -100,14 +100,25 @@ a-share-agents/
 - 升级 `scripts/check_migration.py`：新增 `runner` 模式（root / package / py-aquan），MCP server 测试用 `uv run --package <pkg> pytest` 在 python/ 跑
 - **守门**: 全部 8 suites 198 tests 全绿（174 baseline + 24 aquan 新增）；tushare tolerated（仅剩 TUSHARE_TOKEN，editable install 已修）
 
-### Phase 3 — 迁 ETL → `python/etl/`
+### Phase 3 — 迁 ETL → `python/etl/` ✅
 
 - `git mv scripts/etl python/etl`
-- 改正规包：加 `__init__.py`、内部 import 改 `from aquan.utils...` / `from etl.ods...`
-- 删 `python/etl/tests/conftest.py` 的 sys.path hack
-- 更新 `tests/conftest.py`（根）：移除 `scripts/etl` 注入
-- 更新 `scripts/check.py`：warehouse 命令改为 `cd python && uv run python -m etl.init`
-- **守门**: `cd python && uv run pytest etl/tests/` 13 文件全绿；warehouse init 能跑
+- **扁平化 common/**：catalog/jobs/quality/meta_fields 提到 `etl/` 顶层；mcp_client/parquet_writer/config 删除（已在 aquan）；`common/` 目录消失
+- 新建 `etl/config.py`：ETL 特定路径派生（ODS_ROOT/META_DB_PATH/LOGS_DIR），委托 `aquan.core.config`
+- **批量改 import**（22 个文件）：
+  - `from common.mcp_client` → `from aquan.utils.http`
+  - `from common.parquet_writer` → `from aquan.utils.io`
+  - `from common.meta_fields import params_hash` → `from aquan.utils.hashing`
+  - `from common.{catalog,jobs,quality,config}` → `from etl.{catalog,jobs,quality,config}`
+  - `from ods.X` → `from etl.ods.X`
+  - patch 字符串 `"common.mcp_client.X"` → `"aquan.utils.http.X"`、`"ods.X"` → `"etl.ods.X"`
+- 删 sys.path hack：`etl/tests/conftest.py`、`etl/{init,runner,report}.py` 全部去掉 `_ETL_ROOT` 注入
+- 重写 `etl/tests/test_config.py` 匹配新分层（WAREHOUSE_ROOT/MCP URLs 从 aquan.core，ODS_ROOT 从 etl.config）
+- 更新 `python/pyproject.toml`：加 duckdb 依赖、`etl` 进 hatch packages
+- 更新 `scripts/check_migration.py`：etl suite 从 `root` 模式改为 `py-aquan` 模式（路径 `etl/tests`）
+- 更新 `scripts/check.py`：warehouse 命令提示改为 `cd python && uv run python -m etl.init`
+- 更新根 `tests/conftest.py`：移除 `scripts/etl` sys.path 注入
+- **守门**: `cd python && uv run pytest etl/tests/` **104 passed**（比 baseline 103 多 1，因 test_config 加了新测试）；总 **199 tests passed** across 8 suites
 
 ### Phase 4 — 迁剩余 Python（notebooks/dbt/tests）
 
@@ -181,8 +192,8 @@ a-share-agents/
 |---|---|---|
 | 0 — 骨架 + 文档 | ✅ 完成 | 56d736f |
 | 1 — Python 骨架 + aquan 公共层 | ✅ 完成 | (phase-1 branch) |
-| 2 — 迁 MCP servers | ✅ 完成 | (本 commit) |
-| 3 — 迁 ETL | ⏳ 待开始 | — |
+| 2 — 迁 MCP servers | ✅ 完成 | (phase-2 branch) |
+| 3 — 迁 ETL | ✅ 完成 | (本 commit) |
 | 4 — 迁 notebooks/dbt/tests | ⏳ 待开始 | — |
 | 5 — 扁平化 chat-database + 建新包 | ⏳ 待开始 | — |
 | 6 — 清理 legacy + 文档收尾 | ⏳ 待开始 | — |

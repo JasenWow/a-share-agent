@@ -1,34 +1,26 @@
 """一次性初始化：建目录、meta.db、catalog/jobs 表、DuckDB 视图、注册 catalog。
 
-Usage: uv run python -m scripts.etl.init
+Usage: uv run python -m etl.init
 """
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
+import duckdb
 
-# 让 `from common.X` 和 `from ods.X` 在 python -m 下可用
-_ETL_ROOT = str(Path(__file__).resolve().parent)
-if _ETL_ROOT not in sys.path:
-    sys.path.insert(0, _ETL_ROOT)
-
-import duckdb  # noqa: E402
-
-from common.config import (  # noqa: E402
-    WAREHOUSE_ROOT,
-    ODS_ROOT,
+from aquan.core.config import WAREHOUSE_ROOT
+from etl.config import (
     META_DB_PATH,
+    ODS_ROOT,
     ensure_dirs,
 )
-from common.catalog import init_catalog, register  # noqa: E402
-from common.jobs import init_jobs_table  # noqa: E402
-from ods.equity_daily import CATALOG_ENTRY as EQUITY_DAILY_CAT  # noqa: E402
-from ods.index_constituents import CATALOG_ENTRY as INDEX_CAT  # noqa: E402
-from ods.financial_income import CATALOG_ENTRY as INCOME_CAT  # noqa: E402
-from ods.factor_experiments import CATALOG_ENTRY as FACTOR_EXP_CAT  # noqa: E402
-from ods.backtest_runs import CATALOG_ENTRY as BACKTEST_CAT  # noqa: E402
-from ods.strategy_hypotheses import CATALOG_ENTRY as HYPOTH_CAT  # noqa: E402
+from etl.catalog import init_catalog, register
+from etl.jobs import init_jobs_table
+from etl.ods.equity_daily import CATALOG_ENTRY as EQUITY_DAILY_CAT
+from etl.ods.index_constituents import CATALOG_ENTRY as INDEX_CAT
+from etl.ods.financial_income import CATALOG_ENTRY as INCOME_CAT
+from etl.ods.factor_experiments import CATALOG_ENTRY as FACTOR_EXP_CAT
+from etl.ods.backtest_runs import CATALOG_ENTRY as BACKTEST_CAT
+from etl.ods.strategy_hypotheses import CATALOG_ENTRY as HYPOTH_CAT
 
 # 所有已实现的 domain catalog（init 时注册）
 _ALL_CATALOGS = [
@@ -180,7 +172,7 @@ def main() -> int:
     create_views(conn)
 
     conn.close()
-    print("\n✓ Warehouse initialized. Run ETL: uv run python -m scripts.etl.runner equity_daily --date <YYYYMMDD>")
+    print("\n✓ Warehouse initialized. Run ETL: uv run python -m etl.runner equity_daily --date <YYYYMMDD>")
     return 0
 
 

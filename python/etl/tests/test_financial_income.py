@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
-from ods.financial_income import (
+from etl.ods.financial_income import (
     DOMAIN,
     PARTITION_COL,
     transform,
@@ -64,8 +64,8 @@ def test_transform_injects_meta():
 def test_run_ok_with_lowered_threshold(tmp_path):
     """端到端：mock MCP + 降低 quality 阈值验证落地。"""
     raw = _load()
-    with patch("ods.financial_income.mcp_client.call", return_value=raw):
-        with patch("ods.financial_income.MIN_ROWS", 1):
+    with patch("etl.ods.financial_income.mcp_client.call", return_value=raw):
+        with patch("etl.ods.financial_income.MIN_ROWS", 1):
             result = run(period="20251231", ods_root=tmp_path)
     assert result["status"] == "ok"
     assert result["rows"] == 2

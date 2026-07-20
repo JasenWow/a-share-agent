@@ -1,6 +1,6 @@
 """Tests for data quality checks."""
 
-from common.quality import (
+from etl.quality import (
     run_checks,
     QualityReport,
     min_row_count,

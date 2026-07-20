@@ -5,7 +5,7 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-from common.mcp_client import (
+from aquan.utils.http import (
     call,
     health_check,
     McpError,
@@ -64,23 +64,17 @@ def _mock_post_sequence(*responses):
 def test_call_returns_result_list():
     """正常返回 result.content 里的数据（经过 SSE 解析）。"""
     # 调用链：initialize → notif → tools/call（3 次 POST）
-    init_resp = _mock_response(
-        payload={"jsonrpc": "2.0", "id": "1", "result": {"capabilities": {}}}
-    )
+    init_resp = _mock_response(payload={"jsonrpc": "2.0", "id": "1", "result": {"capabilities": {}}})
     notif_resp = _mock_response(payload=None, raw_text="")
     call_resp = _mock_response(
         payload={
             "jsonrpc": "2.0",
             "id": "2",
-            "result": {
-                "content": [
-                    {"type": "text", "text": json.dumps([{"code": "600519", "close": 1692.0}])}
-                ]
-            },
+            "result": {"content": [{"type": "text", "text": json.dumps([{"code": "600519", "close": 1692.0}])}]},
         }
     )
     with patch(
-        "common.mcp_client.requests.post",
+        "aquan.utils.http.requests.post",
         side_effect=[init_resp, notif_resp, call_resp],
     ):
         reset_session("tushare")
@@ -95,7 +89,7 @@ def test_call_sets_params_hash():
         "result": {"content": [{"type": "text", "text": "[]"}]},
     }
     with patch(
-        "common.mcp_client.requests.post",
+        "aquan.utils.http.requests.post",
         side_effect=[
             _mock_response(payload={"jsonrpc": "2.0", "id": "i", "result": {}}),
             _mock_response(raw_text=""),
@@ -112,7 +106,7 @@ def test_call_raises_on_mcp_error():
     """MCP 返回 error 字段时抛 McpError。"""
     payload = {"jsonrpc": "2.0", "id": "1", "error": {"code": -32602, "message": "invalid params"}}
     with patch(
-        "common.mcp_client.requests.post",
+        "aquan.utils.http.requests.post",
         side_effect=[
             _mock_response(payload={"jsonrpc": "2.0", "id": "i", "result": {}}),
             _mock_response(raw_text=""),
@@ -129,7 +123,7 @@ def test_call_returns_error_dict_from_tool():
     error_text = json.dumps([{"error": "rate limited", "tool": "daily"}])
     payload = {"jsonrpc": "2.0", "id": "1", "result": {"content": [{"type": "text", "text": error_text}]}}
     with patch(
-        "common.mcp_client.requests.post",
+        "aquan.utils.http.requests.post",
         side_effect=[
             _mock_response(payload={"jsonrpc": "2.0", "id": "i", "result": {}}),
             _mock_response(raw_text=""),
@@ -148,8 +142,8 @@ def test_call_retries_on_network_error():
     max_retries=3 → 3 次尝试，前 2 次失败后 sleep，第 3 次失败直接抛。
     sleep 2 次。
     """
-    with patch("common.mcp_client.requests.post", side_effect=ConnectionError("network down")):
-        with patch("common.mcp_client.time.sleep") as mock_sleep:
+    with patch("aquan.utils.http.requests.post", side_effect=ConnectionError("network down")):
+        with patch("aquan.utils.http.time.sleep") as mock_sleep:
             reset_session("tushare")
             with pytest.raises(McpError, match="network down"):
                 call("tushare", "daily", {}, max_retries=3)
@@ -177,7 +171,7 @@ def test_call_handles_multi_chunk_content():
         },
     }
     with patch(
-        "common.mcp_client.requests.post",
+        "aquan.utils.http.requests.post",
         side_effect=[
             _mock_response(payload={"jsonrpc": "2.0", "id": "i", "result": {}}),
             _mock_response(raw_text=""),
@@ -198,7 +192,7 @@ def test_health_check_ok():
         "result": {"content": [{"type": "text", "text": json.dumps([{"status": "ok"}])}]},
     }
     with patch(
-        "common.mcp_client.requests.post",
+        "aquan.utils.http.requests.post",
         side_effect=[
             _mock_response(payload={"jsonrpc": "2.0", "id": "i", "result": {}}),
             _mock_response(raw_text=""),
@@ -210,8 +204,8 @@ def test_health_check_ok():
 
 
 def test_health_check_fail():
-    with patch("common.mcp_client.requests.post", side_effect=ConnectionError("down")):
-        with patch("common.mcp_client.time.sleep"):
+    with patch("aquan.utils.http.requests.post", side_effect=ConnectionError("down")):
+        with patch("aquan.utils.http.time.sleep"):
             reset_session("akshare")
             assert health_check("akshare", max_retries=1) is False
 
@@ -226,7 +220,7 @@ def test_session_cached_across_calls():
         # 第二次 call 不应该再有 init/notif
         _mock_response(payload=payload),  # call 2
     ]
-    with patch("common.mcp_client.requests.post", side_effect=responses) as mock_post:
+    with patch("aquan.utils.http.requests.post", side_effect=responses) as mock_post:
         reset_session("tushare")
         call("tushare", "daily", {})
         call("tushare", "daily", {})
@@ -238,7 +232,7 @@ def test_session_reset_clears_cache():
     """reset_session 后下次 call 会重新握手。"""
     payload = {"jsonrpc": "2.0", "id": "1", "result": {"content": [{"type": "text", "text": "[]"}]}}
     with patch(
-        "common.mcp_client.requests.post",
+        "aquan.utils.http.requests.post",
         side_effect=[
             _mock_response(payload={"jsonrpc": "2.0", "id": "i1", "result": {}}),
             _mock_response(raw_text=""),

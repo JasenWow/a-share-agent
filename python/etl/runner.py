@@ -1,37 +1,30 @@
 """ETL 统一调度入口。
 
 Usage:
-  uv run python -m scripts.etl.runner equity_daily --date 20260717
-  uv run python -m scripts.etl.runner equity_daily --start 2024-01-01 --end 2024-12-31
-  uv run python -m scripts.etl.runner --priority P0 --date 20260717
-  uv run python -m scripts.etl.runner --all --date 20260717
+  uv run python -m etl.runner equity_daily --date 20260717
+  uv run python -m etl.runner equity_daily --start 2024-01-01 --end 2024-12-31
+  uv run python -m etl.runner --priority P0 --date 20260717
+  uv run python -m etl.runner --all --date 20260717
 """
 
 from __future__ import annotations
 
 import argparse
 import json
-import sys
 from datetime import datetime, timezone
-from pathlib import Path
 
-# 让 `from common.X` 和 `from ods.X` 在 python -m 下可用
-_ETL_ROOT = str(Path(__file__).resolve().parent)
-if _ETL_ROOT not in sys.path:
-    sys.path.insert(0, _ETL_ROOT)
-
-from common.config import LOGS_DIR, ensure_dirs  # noqa: E402
-from common import mcp_client  # noqa: E402
+from etl.config import LOGS_DIR, ensure_dirs
+from aquan.utils import http as mcp_client
 
 # domain 名 → (module_path, priority) 映射
 _DOMAIN_REGISTRY = {
-    "equity_daily": ("ods.equity_daily", "P0"),
-    "index_constituents": ("ods.index_constituents", "P0"),
-    "financial_income": ("ods.financial_income", "P1"),
+    "equity_daily": ("etl.ods.equity_daily", "P0"),
+    "index_constituents": ("etl.ods.index_constituents", "P0"),
+    "financial_income": ("etl.ods.financial_income", "P1"),
     # 实验数据入仓（子项目 ❷）：internal-store 快照，P2
-    "factor_experiments": ("ods.factor_experiments", "P2"),
-    "backtest_runs": ("ods.backtest_runs", "P2"),
-    "strategy_hypotheses": ("ods.strategy_hypotheses", "P2"),
+    "factor_experiments": ("etl.ods.factor_experiments", "P2"),
+    "backtest_runs": ("etl.ods.backtest_runs", "P2"),
+    "strategy_hypotheses": ("etl.ods.strategy_hypotheses", "P2"),
 }
 
 

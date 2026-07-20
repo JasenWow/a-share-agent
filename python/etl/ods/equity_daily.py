@@ -11,11 +11,11 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from common import mcp_client
-from common.meta_fields import inject
-from common.meta_fields import params_hash as compute_hash
-from common.parquet_writer import write as write_parquet
-from common.quality import (
+from aquan.utils import http as mcp_client
+from etl.meta_fields import inject
+from aquan.utils.hashing import params_hash as compute_hash
+from aquan.utils.io import write as write_parquet
+from etl.quality import (
     run_checks,
     min_row_count,
     no_null_in,

@@ -1,24 +1,25 @@
-"""ODS ETL: 回测运行（回测结果快照）。
+"""ODS ETL: 策略假设实验（experiments 表快照）。
 
-数据源：internal-store list_backtest_results
+数据源：internal-store list_experiments
 分区：dt=YYYY-MM-DD（快照分区）
 
-internal-store backtest_results 列：
-  id, name, strategy, start_date, end_date, sharpe, max_drawdown,
-  annual_return, created_at
+internal-store experiments 列：
+  id, name, strategy (JSON), params (JSON), result (JSON), created_at
+
+strategy/params/result 原样保留 JSON 字符串，下游 dbt 再展开。
 """
 
 from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from common import mcp_client
-from common.meta_fields import inject
-from common.meta_fields import params_hash as compute_hash
-from common.parquet_writer import write as write_parquet
-from common.quality import run_checks, min_row_count, no_null_in
+from aquan.utils import http as mcp_client
+from etl.meta_fields import inject
+from aquan.utils.hashing import params_hash as compute_hash
+from aquan.utils.io import write as write_parquet
+from etl.quality import run_checks, min_row_count, no_null_in
 
-DOMAIN = "backtest_runs"
+DOMAIN = "strategy_hypotheses"
 PARTITION_COL = "dt"
 PARTITION_GRAIN = "snapshot"
 SOURCE_MCP = "internal-store"
@@ -28,13 +29,13 @@ MIN_ROWS = 1
 
 def extract(date: str) -> list[dict]:
     """date 仅作为分区标签。"""
-    return mcp_client.call(SOURCE_MCP, "list_backtest_results", {"limit": 500})
+    return mcp_client.call(SOURCE_MCP, "list_experiments", {})
 
 
 def transform(rows: list[dict], date: str) -> list[dict]:
     fetched_at = datetime.now(timezone.utc).isoformat()
     etl_run_id = f"{date}_{datetime.now().strftime('%H%M%S')}_{DOMAIN}"
-    p_hash = mcp_client.get_last_params_hash() or compute_hash({"limit": 500})
+    p_hash = mcp_client.get_last_params_hash() or compute_hash({})
 
     result = []
     for r in rows:
@@ -43,18 +44,16 @@ def transform(rows: list[dict], date: str) -> list[dict]:
         result.append(
             {
                 "snapshot_date": date,
-                "run_id": int(r.get("id", 0) or 0),
+                "experiment_id": int(r.get("id", 0) or 0),
                 "name": str(r.get("name", "")),
-                "strategy": str(r.get("strategy", "")),
-                "start_date": str(r.get("start_date", "")),
-                "end_date": str(r.get("end_date", "")),
-                "sharpe": float(r.get("sharpe", 0) or 0),
-                "max_drawdown": float(r.get("max_drawdown", 0) or 0),
-                "annual_return": float(r.get("annual_return", 0) or 0),
+                # strategy/params/result 是 JSON 字符串，原样保留供下游 dbt 展开
+                "strategy_json": str(r.get("strategy", "") or ""),
+                "params_json": str(r.get("params", "") or ""),
+                "result_json": str(r.get("result", "") or ""),
                 "created_at": str(r.get("created_at", "")),
                 **inject(
                     source=SOURCE_MCP,
-                    source_tool="list_backtest_results",
+                    source_tool="list_experiments",
                     fetched_at=fetched_at,
                     params_hash=p_hash,
                     etl_run_id=etl_run_id,
@@ -71,7 +70,7 @@ def check_quality(rows: list[dict], date: str):
         date,
         [
             min_row_count(MIN_ROWS),
-            no_null_in(["name", "strategy"]),
+            no_null_in(["name"]),
         ],
     )
 
@@ -123,13 +122,13 @@ def run(date: str = "", ods_root=None) -> dict:
 
 
 CATALOG_ENTRY = {
-    "table_name": "ods_backtest_runs",
+    "table_name": "ods_strategy_hypotheses",
     "domain": "experiments",
     "source_mcp": SOURCE_MCP,
-    "source_tool": "list_backtest_results",
+    "source_tool": "list_experiments",
     "partition_col": PARTITION_COL,
     "partition_grain": PARTITION_GRAIN,
-    "schema_json": '{"snapshot_date":"str","run_id":"int","name":"str","strategy":"str","start_date":"str","end_date":"str","sharpe":"float","max_drawdown":"float","annual_return":"float","created_at":"str"}',
-    "description": "回测运行结果快照（按日分区）",
+    "schema_json": '{"snapshot_date":"str","experiment_id":"int","name":"str","strategy_json":"str","params_json":"str","result_json":"str","created_at":"str"}',
+    "description": "策略假设实验快照（按日分区，JSON 字段原样保留）",
     "owner": "etl",
 }

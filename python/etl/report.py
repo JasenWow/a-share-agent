@@ -1,25 +1,18 @@
 """ETL 报告子命令：缺数据 / 任务历史。
 
 Usage:
-  uv run python -m scripts.etl.report --missing-dates --domain equity_daily --last 30d
-  uv run python -m scripts.etl.report --jobs --status failed --last 7d
+  uv run python -m etl.report --missing-dates --domain equity_daily --last 30d
+  uv run python -m etl.report --jobs --status failed --last 7d
 """
 
 from __future__ import annotations
 
 import argparse
-import sys
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 
-# 让 `from common.X` 在 python -m 下可用
-_ETL_ROOT = str(Path(__file__).resolve().parent)
-if _ETL_ROOT not in sys.path:
-    sys.path.insert(0, _ETL_ROOT)
+import duckdb
 
-import duckdb  # noqa: E402
-
-from common.config import META_DB_PATH, ODS_ROOT  # noqa: E402
+from etl.config import META_DB_PATH, ODS_ROOT
 
 
 def _parse_last(s: str) -> datetime:
@@ -68,7 +61,7 @@ def missing_dates(domain: str, last: str) -> None:
         if missing:
             start = missing[0].replace("-", "")
             end = missing[-1].replace("-", "")
-            print(f"\nBackfill: uv run python -m scripts.etl.runner {domain} --start {start} --end {end}")
+            print(f"\nBackfill: uv run python -m etl.runner {domain} --start {start} --end {end}")
     finally:
         conn.close()
 

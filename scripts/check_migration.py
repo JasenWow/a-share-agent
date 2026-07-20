@@ -40,7 +40,7 @@ PYTHON_ROOT = ROOT / "python"
 TEST_SUITES = [
     # Phase 0 baseline suites (still in original locations until their phase migrates)
     ("root-integration", "root", "tests", None),
-    ("etl", "root", "scripts/etl/tests", None),
+    ("etl", "py-aquan", "etl/tests", None),  # moved to python/etl/tests in Phase 3
     ("metrics", "root", "metrics", None),
     ("notebooks", "root", "notebooks", None),
     # MCP servers — moved to python/mcp-servers/ in Phase 2, now run via --package

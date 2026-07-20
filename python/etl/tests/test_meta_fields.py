@@ -1,6 +1,7 @@
 """Tests for meta_fields injection."""
 
-from common.meta_fields import inject, params_hash
+from etl.meta_fields import inject
+from aquan.utils.hashing import params_hash
 
 
 def test_params_hash_stable():

@@ -3,7 +3,7 @@
 import duckdb
 import pytest
 
-from common.jobs import (
+from etl.jobs import (
     DuckDBJobService,
     JobSpec,
     JobStatus,

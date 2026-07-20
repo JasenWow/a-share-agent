@@ -3,7 +3,7 @@
 import pyarrow.parquet as pq
 import pytest
 
-from common.parquet_writer import write
+from aquan.utils.io import write
 
 
 def test_write_creates_parquet_file(tmp_path):

@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
-from ods.index_constituents import (
+from etl.ods.index_constituents import (
     DOMAIN,
     PARTITION_COL,
     transform,
@@ -64,8 +64,8 @@ def test_transform_injects_meta():
 def test_run_ok_with_lowered_threshold(tmp_path):
     """端到端 mock + 降低 quality 阈值。"""
     raw = _load_fixture()
-    with patch("ods.index_constituents.mcp_client.call", return_value=raw):
-        with patch("ods.index_constituents.MIN_ROWS", 1):
+    with patch("etl.ods.index_constituents.mcp_client.call", return_value=raw):
+        with patch("etl.ods.index_constituents.MIN_ROWS", 1):
             result = run("000300.SH", month="202607", ods_root=tmp_path)
     assert result["status"] == "ok"
     assert result["rows"] == 3
