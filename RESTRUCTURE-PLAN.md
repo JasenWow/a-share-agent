@@ -88,13 +88,17 @@ a-share-agents/
 - **策略**: 复制 + re-export（原位置保持，Phase 3 迁 ETL 时才切 import）
 - **守门**: `cd python && uv run pytest aquan/` 24 tests 全绿 ✅；根守门 174 全绿 ✅
 
-### Phase 2 — 迁 4 个 MCP servers（每 server 一个 commit）
+### Phase 2 — 迁 4 个 MCP servers（每 server 一个 commit）✅
 
-- `git mv mcp-servers/{akshare,tushare,internal,qlib}-server python/mcp-servers/`
+- `git mv mcp-servers/{akshare,tushare,internal,qlib}-server python/mcp-servers/`（一次性 mv，避免半状态）
 - 各 `pyproject.toml` 改 `name = "aquan-*-server"`
-- 清理 `prediction-store` drift；补 `qlib-server` 到 `[tool.uv.sources]`
+- 顺手修 `tushare-server` 和 `internal-store` 缺失的 `[tool.setuptools.packages.find] exclude`（tushare 的 editable install 失败根因之一）
+- 清理 `prediction-store` drift（根 pyproject 不再引用它）
+- `python/pyproject.toml` 加入 4 个 MCP servers 为 workspace members + sources
+- `qlib-server` 补进 `[tool.uv.sources]`
 - 更新 `scripts/check.py`：`ROOT/"mcp-servers"` → `ROOT/"python"/"mcp-servers"`
-- **守门**: 各 server 的 test_server.py 绿；`scripts/check.py` 通过
+- 升级 `scripts/check_migration.py`：新增 `runner` 模式（root / package / py-aquan），MCP server 测试用 `uv run --package <pkg> pytest` 在 python/ 跑
+- **守门**: 全部 8 suites 198 tests 全绿（174 baseline + 24 aquan 新增）；tushare tolerated（仅剩 TUSHARE_TOKEN，editable install 已修）
 
 ### Phase 3 — 迁 ETL → `python/etl/`
 
@@ -176,8 +180,8 @@ a-share-agents/
 | Phase | 状态 | PR |
 |---|---|---|
 | 0 — 骨架 + 文档 | ✅ 完成 | 56d736f |
-| 1 — Python 骨架 + aquan 公共层 | ✅ 完成 | (本 commit) |
-| 2 — 迁 MCP servers | ⏳ 待开始 | — |
+| 1 — Python 骨架 + aquan 公共层 | ✅ 完成 | (phase-1 branch) |
+| 2 — 迁 MCP servers | ✅ 完成 | (本 commit) |
 | 3 — 迁 ETL | ⏳ 待开始 | — |
 | 4 — 迁 notebooks/dbt/tests | ⏳ 待开始 | — |
 | 5 — 扁平化 chat-database + 建新包 | ⏳ 待开始 | — |

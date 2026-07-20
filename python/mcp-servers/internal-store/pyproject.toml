@@ -1,14 +1,17 @@
 [project]
-name = "tushare-mcp-server"
+name = "aquan-internal-store-server"
 version = "0.1.0"
 requires-python = ">=3.10"
 dependencies = [
-    "tushare>=1.4",
     "mcp>=1.0",
     "pandas>=2.0",
+    "pyarrow>=14.0",
     "fastapi>=0.110",
     "uvicorn>=0.27",
 ]
 
 [project.scripts]
-tushare-mcp = "server:main"
+internal-store-mcp = "server:main"
+
+[tool.setuptools.packages.find]
+exclude = ["test_*"]

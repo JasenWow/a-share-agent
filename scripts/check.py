@@ -89,7 +89,7 @@ def check_mcp_servers_code() -> list[str]:
     issues = []
     servers = ["akshare-server", "tushare-server", "internal-store"]
     for srv in servers:
-        srv_dir = ROOT / "mcp-servers" / srv
+        srv_dir = ROOT / "python" / "mcp-servers" / srv
         if not srv_dir.exists():
             issues.append(f"MISSING: MCP server directory {srv_dir}")
             continue
@@ -106,7 +106,7 @@ def check_boundary_rules() -> list[str]:
     plugins_dir = ROOT / "plugins"
 
     # R1: MCP servers must not import plugins/ code
-    mcp_dir = ROOT / "mcp-servers"
+    mcp_dir = ROOT / "python" / "mcp-servers"
     if mcp_dir.exists():
         for srv_dir in mcp_dir.iterdir():
             if not srv_dir.is_dir():

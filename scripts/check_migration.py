@@ -9,17 +9,18 @@ Why this exists:
     total count + pass/fail. It is the single source of truth for "did this
     phase break anything".
 
-Why per-directory invocation:
-    Several test files share the basename `test_server.py` (one per MCP
-    server). Running pytest from root fails with import ambiguity. Invoking
-    each directory separately sidesteps the conflict.
+Runner modes (a suite runs in exactly one mode):
+  - "root":     `uv run pytest <path>` from repo root (pre-Phase 2 Python code)
+  - "package":  `uv run --package <pkg> pytest <path>` from python/ (MCP servers
+                with their own deps; need uv workspace member resolution)
+  - "py-aquan": `uv run pytest <path>` from python/ (post-migration aquan tests)
 
 Usage:
     python scripts/check_migration.py           # run all suites
     python scripts/check_migration.py --baseline # record baseline (Phase 0 only)
 
 Exit code:
-    0 — all suites green
+    0 — all suites green (or tolerated known-broken)
     1 — at least one suite failed or count regressed from baseline
 """
 
@@ -30,62 +31,81 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
+PYTHON_ROOT = ROOT / "python"
 
-# Directories with standalone test suites at restructure start (Phase 0).
-# Order matters only for readability. Each is invoked independently.
+# Each suite: (name, runner, path, package?)
+#   runner="root"     -> cwd=ROOT,    cmd=`uv run pytest <path>`
+#   runner="package"  -> cwd=python/, cmd=`uv run --package <pkg> pytest <path>`
+#   runner="py-aquan" -> cwd=python/, cmd=`uv run pytest <path>`
 TEST_SUITES = [
-    ("root-integration", "tests"),
-    ("etl", "scripts/etl/tests"),
-    ("metrics", "metrics"),
-    ("notebooks", "notebooks"),
-    ("akshare-server", "mcp-servers/akshare-server"),
-    ("tushare-server", "mcp-servers/tushare-server"),
-    ("internal-store", "mcp-servers/internal-store"),
+    # Phase 0 baseline suites (still in original locations until their phase migrates)
+    ("root-integration", "root", "tests", None),
+    ("etl", "root", "scripts/etl/tests", None),
+    ("metrics", "root", "metrics", None),
+    ("notebooks", "root", "notebooks", None),
+    # MCP servers — moved to python/mcp-servers/ in Phase 2, now run via --package
+    ("akshare-server", "package", "mcp-servers/akshare-server", "aquan-akshare-server"),
+    ("tushare-server", "package", "mcp-servers/tushare-server", "aquan-tushare-server"),
+    ("internal-store", "package", "mcp-servers/internal-store", "aquan-internal-store-server"),
+    # New aquan public-layer tests (added in Phase 1, live under python/aquan/)
+    ("aquan-smoke-and-metrics", "py-aquan", "aquan", None),
 ]
 
-# Known-broken at Phase 0 (pre-existing, not caused by restructure).
-# These are tolerated; everything else must stay green.
-# Each entry: suite-name -> reason.
+# Known-broken suites (pre-existing, not caused by restructure).
+# Tolerated; everything else must stay green. suite-name -> reason.
 KNOWN_BROKEN = {
-    "simulation-integration": "imports `scripts.simulator` which doesn't exist as importable module — pre-existing drift",
-    "tushare-server": "tests require TUSHARE_TOKEN env var; editable install also fails (missing setuptools exclude) — pre-existing, fixed in Phase 2",
+    "simulation-integration": "imports `scripts.simulator` which doesn't exist as importable module — pre-existing drift (not in TEST_SUITES)",
+    "tushare-server": "server.py raises ValueError at import time if TUSHARE_TOKEN env var is missing — pre-existing design issue, deferred",
 }
 
 BASELINE_FILE = ROOT / "scripts" / ".migration-baseline.json"
 
 
-def run_suite(name: str, rel_path: str) -> dict:
-    """Run pytest in a single directory, return result dict."""
-    suite_dir = ROOT / rel_path
-    if not suite_dir.exists():
+def run_suite(name: str, runner: str, rel_path: str, package: str | None) -> dict:
+    """Run pytest for one suite per its runner mode. Return result dict."""
+    if runner == "root":
+        cwd, path = ROOT, ROOT / rel_path
+        cmd = ["uv", "run", "pytest", str(path), "-q", "--no-header", "--tb=no", "-p", "no:cacheprovider"]
+    elif runner == "package":
+        cwd, path = PYTHON_ROOT, PYTHON_ROOT / rel_path
+        cmd = [
+            "uv", "run", "--package", package,
+            "pytest", str(path), "-q", "--no-header", "--tb=no", "-p", "no:cacheprovider",
+        ]
+    elif runner == "py-aquan":
+        cwd, path = PYTHON_ROOT, PYTHON_ROOT / rel_path
+        cmd = ["uv", "run", "pytest", str(path), "-q", "--no-header", "--tb=no", "-p", "no:cacheprovider"]
+    else:
+        return {"name": name, "path": rel_path, "status": "missing", "passed": 0, "failed": 0, "total": 0, "error": f"unknown runner {runner}"}
+
+    if not path.exists():
         return {"name": name, "path": rel_path, "status": "missing", "passed": 0, "failed": 0, "total": 0}
 
-    result = subprocess.run(
-        ["uv", "run", "pytest", str(suite_dir), "-q", "--no-header", "--tb=no", "-p", "no:cacheprovider"],
-        capture_output=True,
-        text=True,
-        cwd=str(ROOT),
-    )
+    result = subprocess.run(cmd, capture_output=True, text=True, cwd=str(cwd))
 
     # Parse "X passed" or "X failed, Y passed" from the summary line.
-    passed = 0
-    failed = 0
+    passed, failed = 0, 0
     for line in result.stdout.splitlines() + result.stderr.splitlines():
         line = line.strip()
-        if "passed" in line and ("error" not in line.lower()):
-            # e.g. "132 passed in 0.69s" or "2 failed, 130 passed in 0.7s"
+        if "passed" in line and "error" not in line.lower():
             parts = line.split()
             for i, part in enumerate(parts):
-                if part == "passed":
-                    # Look backwards for the number
-                    if i > 0 and parts[i - 1].isdigit():
-                        passed = int(parts[i - 1])
-                elif part == "failed,":
-                    if i > 0 and parts[i - 1].isdigit():
-                        failed = int(parts[i - 1])
+                if part == "passed" and i > 0 and parts[i - 1].isdigit():
+                    passed = int(parts[i - 1])
+                elif part == "failed," and i > 0 and parts[i - 1].isdigit():
+                    failed = int(parts[i - 1])
 
     status = "green" if result.returncode == 0 else "red"
-    return {"name": name, "path": rel_path, "status": status, "passed": passed, "failed": failed, "total": passed + failed}
+    return {
+        "name": name,
+        "path": rel_path,
+        "runner": runner,
+        "package": package,
+        "status": status,
+        "passed": passed,
+        "failed": failed,
+        "total": passed + failed,
+    }
 
 
 def main():
@@ -99,23 +119,23 @@ def main():
     print("=" * 60)
 
     results = []
-    for name, path in TEST_SUITES:
+    for suite in TEST_SUITES:
+        name, runner, rel_path, package = suite
         if args.quiet:
             print(f"  running {name}...", end=" ", flush=True)
-        result = run_suite(name, path)
-        # Known-broken suites get their status overridden so they don't fail CI,
-        # but their pass counts are still tracked (regression = count drops further).
+        result = run_suite(name, runner, rel_path, package)
+        # Known-broken suites don't fail CI, but their pass counts still track regressions.
         if name in KNOWN_BROKEN and result["status"] == "red":
             result["status"] = "tolerated"
             result["known_broken_reason"] = KNOWN_BROKEN[name]
         results.append(result)
+        icons = {"green": "✅", "red": "❌", "tolerated": "⚠️ ", "missing": "🕳️ "}
         if args.quiet:
-            status_icon = {"green": "✅", "red": "❌", "tolerated": "⚠️ ", "missing": "🕳️ "}[result["status"]]
-            print(f"{status_icon} {result['passed']} passed")
+            print(f"{icons[result['status']]} {result['passed']} passed")
         else:
-            status_icon = {"green": "✅", "red": "❌", "tolerated": "⚠️ ", "missing": "🕳️ "}[result["status"]]
             suffix = f"  [tolerated: {result.get('known_broken_reason', '')}]" if result["status"] == "tolerated" else ""
-            print(f"  [{name:20s}] {status_icon} {result['passed']:>4d} passed  ({result['path']}){suffix}")
+            runner_tag = f" ({runner}" + (f":{package}" if package else "") + ")"
+            print(f"  [{name:24s}] {icons[result['status']]} {result['passed']:>4d} passed  ({rel_path}){runner_tag}{suffix}")
 
     total_passed = sum(r["passed"] for r in results)
     real_red = [r for r in results if r["status"] == "red"]

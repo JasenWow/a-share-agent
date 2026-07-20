@@ -30,10 +30,20 @@ dev = [
     "ruff>=0.4",
 ]
 
-# Phase 1: workspace has no members yet (MCP servers arrive in Phase 2).
-# Empty members list keeps this a standalone project during the transition.
+# Phase 2: 4 MCP servers added as workspace members + sources.
+[tool.uv.sources]
+aquan-akshare-server = { workspace = true }
+aquan-internal-store-server = { workspace = true }
+aquan-tushare-server = { workspace = true }
+aquan-qlib-server = { workspace = true }
+
 [tool.uv.workspace]
-members = []
+members = [
+    "mcp-servers/akshare-server",
+    "mcp-servers/tushare-server",
+    "mcp-servers/internal-store",
+    "mcp-servers/qlib-server",
+]
 
 [tool.uv]
 environments = ["sys_platform != 'win32'"]
