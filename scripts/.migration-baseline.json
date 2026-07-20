@@ -1,0 +1,62 @@
+{
+  "total_passed": 174,
+  "suites": [
+    {
+      "name": "root-integration",
+      "path": "tests",
+      "status": "green",
+      "passed": 10,
+      "failed": 0,
+      "total": 10
+    },
+    {
+      "name": "etl",
+      "path": "scripts/etl/tests",
+      "status": "green",
+      "passed": 103,
+      "failed": 0,
+      "total": 103
+    },
+    {
+      "name": "metrics",
+      "path": "metrics",
+      "status": "green",
+      "passed": 16,
+      "failed": 0,
+      "total": 16
+    },
+    {
+      "name": "notebooks",
+      "path": "notebooks",
+      "status": "green",
+      "passed": 3,
+      "failed": 0,
+      "total": 3
+    },
+    {
+      "name": "akshare-server",
+      "path": "mcp-servers/akshare-server",
+      "status": "green",
+      "passed": 9,
+      "failed": 0,
+      "total": 9
+    },
+    {
+      "name": "tushare-server",
+      "path": "mcp-servers/tushare-server",
+      "status": "tolerated",
+      "passed": 0,
+      "failed": 0,
+      "total": 0,
+      "known_broken_reason": "tests require TUSHARE_TOKEN env var; editable install also fails (missing setuptools exclude) \u2014 pre-existing, fixed in Phase 2"
+    },
+    {
+      "name": "internal-store",
+      "path": "mcp-servers/internal-store",
+      "status": "green",
+      "passed": 33,
+      "failed": 0,
+      "total": 33
+    }
+  ]
+}
