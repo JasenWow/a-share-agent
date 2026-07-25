@@ -10,12 +10,13 @@
  *   - If opts.apiKey is provided, install it via an InMemoryCredentialStore.
  *   - Otherwise, fall back to the provider's env var (e.g. ZAI_API_KEY).
  *
- * streamFn:
- *   - We import streamSimple from @earendil-works/pi-ai/api/openai-completions.
- *   - ZAI/OpenAI/Anthropic-compatible providers all use openai-completions API.
- *   - For providers with other APIs (google-generative-ai, bedrock, ...),
- *     future versions will need a per-API streamFn resolver. Out of scope
- *     for Stage 1 (default is ZAI).
+ * streamFn resolution:
+ *   - The Pi SDK ships one streamSimple per LLM API dialect. We pick the
+ *     right one based on the resolved model's `api` field:
+ *       openai-completions  → openai-completions/streamSimple  (ZAI, OpenAI, ...)
+ *       anthropic-messages  → anthropic-messages/streamSimple  (MiniMax, Anthropic, ...)
+ *     Other dialects (google-generative-ai, bedrock-converse-stream, ...) will
+ *     throw a clear "unsupported api" error; add them here as needed.
  */
 
 import type { AgentRuntime, AgentSession } from "@aquan/orchestrator"
@@ -23,13 +24,30 @@ import { Agent } from "@earendil-works/pi-agent-core"
 import { InMemoryCredentialStore } from "@earendil-works/pi-ai"
 import { builtinModels, getBuiltinModel } from "@earendil-works/pi-ai/providers/all"
 import type { Model } from "@earendil-works/pi-ai"
-import { streamSimple } from "@earendil-works/pi-ai/api/openai-completions"
+import { streamSimple as openaiStreamSimple } from "@earendil-works/pi-ai/api/openai-completions"
+import { streamSimple as anthropicStreamSimple } from "@earendil-works/pi-ai/api/anthropic-messages"
 import { resolvePiRuntimeOptions, type PiRuntimeOptions } from "./config"
 import { ALL_CLI_TOOLS } from "./cli-tools"
 import { PiSession } from "./session"
 import { NullToolRegistration } from "./tools"
 
 export type { PiRuntimeOptions } from "./config"
+
+/** Map a Pi SDK model's `api` field to its streamSimple function. */
+function resolveStreamFn(model: Model<unknown>): (model: Model<unknown>, context: unknown, options?: unknown) => unknown {
+  const api = (model as { api?: string }).api
+  switch (api) {
+    case "openai-completions":
+      return openaiStreamSimple as never
+    case "anthropic-messages":
+      return anthropicStreamSimple as never
+    default:
+      throw new Error(
+        `PiRuntime: unsupported model api "${api}". Supported: openai-completions, anthropic-messages. ` +
+          `Add the corresponding streamSimple import in runtime.ts to enable it.`,
+      )
+  }
+}
 
 export class PiRuntime implements AgentRuntime {
   private readonly resolved: ReturnType<typeof resolvePiRuntimeOptions>
@@ -45,6 +63,7 @@ export class PiRuntime implements AgentRuntime {
     systemPrompt?: string
   }): Promise<AgentSession> {
     const model = this.resolveModel()
+    const streamFn = resolveStreamFn(model)
     const credentialStore = this.buildCredentialStore()
     const providerId = this.resolved.provider
 
@@ -56,7 +75,7 @@ export class PiRuntime implements AgentRuntime {
       "You are an A-share quant agent running inside the aquan orchestrator."
 
     const agent = new Agent({
-      streamFn: streamSimple,
+      streamFn,
       getApiKey: async (provider) => {
         if (provider !== providerId) return undefined
         const cred = await credentialStore.read(provider)

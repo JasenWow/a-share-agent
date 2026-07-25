@@ -67,7 +67,15 @@ export async function runCli(
   const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS
   const spawn = opts.spawn ?? defaultSpawn
 
-  const proc = spawn(argv, {
+  // Resolve the actual command to spawn. The `aquan` console script lives
+  // in <repo>/python/.venv/bin/, which may not be on PATH when pi-runtime
+  // runs inside `bun test` or a different process tree. Fall back to
+  // `uv run --directory python aquan ...` when the bare `aquan` lookup
+  // fails — this is what the spec's "首版接受 uv run 开销" decision
+  // called for.
+  const fullArgv = resolveAquanCommand(argv, cwd)
+
+  const proc = spawn(fullArgv, {
     cwd,
     env: process.env,
     stdout: "pipe",
@@ -163,6 +171,63 @@ function defaultSpawn(
     exited: proc.exited,
     kill: (signal?: string) => proc.kill(signal as 0 | 3 | 15 | 9),
   }
+}
+
+/**
+ * Resolve the actual command + args to spawn for an `aquan` invocation.
+ *
+ * Prefers the bare `aquan` console script if it's resolvable on PATH or
+ * in <repo>/python/.venv/bin. Falls back to `uv run --directory python
+ * aquan ...` otherwise. The fallback has ~1s startup overhead but works
+ * in every environment that has uv + the Python venv installed.
+ */
+function resolveAquanCommand(argv: string[], repoRoot: string): string[] {
+  // argv[0] is always "aquan" (set by buildArgv). Try local candidates first.
+  const candidates = [
+    joinPath(repoRoot, "python", ".venv", "bin", "aquan"),
+    "aquan", // rely on PATH
+  ]
+  for (const candidate of candidates) {
+    if (isExecutableOnPath(candidate)) {
+      return [candidate, ...argv.slice(1)]
+    }
+  }
+  // Fallback: uv run. cwd is repoRoot, so --directory python resolves.
+  return ["uv", "run", "--directory", "python", "aquan", ...argv.slice(1)]
+}
+
+/** True if the given command is executable (absolute path exists + executable, or on PATH). */
+function isExecutableOnPath(cmd: string): boolean {
+  if (cmd.includes("/")) {
+    // Absolute / relative path: check file existence + executable bit.
+    try {
+      const fs = require("node:fs")
+      const stat = fs.statSync(cmd)
+      // eslint-disable-next-line no-bitwise
+      return stat.isFile() && (stat.mode & 0o111) !== 0
+    } catch {
+      return false
+    }
+  }
+  // Bare command: scan PATH.
+  const path = process.env.PATH ?? ""
+  const ext = process.platform === "win32" ? ".exe" : ""
+  for (const dir of path.split(process.platform === "win32" ? ";" : ":")) {
+    if (!dir) continue
+    try {
+      const fs = require("node:fs")
+      fs.accessSync(`${dir}/${cmd}${ext}`, fs.constants.X_OK)
+      return true
+    } catch {
+      // continue scanning
+    }
+  }
+  return false
+}
+
+/** Platform-safe path join (Bun + Node both support node:path). */
+function joinPath(...parts: string[]): string {
+  return parts.join("/")
 }
 
 /** Wrap a ReadableStream so it exposes an awaitable text() method. */
