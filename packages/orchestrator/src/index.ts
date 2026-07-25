@@ -5,12 +5,13 @@
  *   import { Orchestrator, MemoryTracker, StubRuntime, startOrchestratorServer } from "@aquan/orchestrator"
  *
  * Phase 5: skeleton. The poll-run-record loop, in-memory state store,
- * and HTTP presenter are implemented. Pi runtime integration + real
- * trackers arrive in follow-up specs.
+ * and HTTP presenter are implemented.
+ * Hardening (2026-07-25): SpendGuard + ConcurrencyGate bound what an
+ * agent run can do before any provider call. See hardening spec.
  */
 
 export { Orchestrator } from "./orchestrator"
-export type { OrchestratorOpts } from "./orchestrator"
+export type { OrchestratorOpts, TickOutcome } from "./orchestrator"
 
 export { runWork } from "./agent-runner"
 export type { RunOpts, RunOutcome } from "./agent-runner"
@@ -31,11 +32,17 @@ export { StubRuntime } from "./runtime"
 
 export {
   buildInitialPrompt,
+  buildInitialPromptParts,
   buildContinuationPrompt,
 } from "./prompt-builder"
+export type { PromptParts } from "./prompt-builder"
 
 export { LocalWorkspaceManager } from "./workspace"
 export type { WorkspaceManager } from "./workspace"
+
+// Hardening exports
+export { SpendGuard, ConcurrencyGate } from "./policy"
+export type { SpendCheckResult, SpendRejectReason, SpendStats } from "./policy"
 
 export type { Tracker, AgentToolSpec } from "./trackers/tracker"
 export { MemoryTracker } from "./trackers/tracker"

@@ -7,13 +7,16 @@
  *   - turn 2..N: continuation guidance
  *   - stops on: done | blocked | max turns | fatal error
  *
- * Mirrors Symphony's AgentRunner.do_run_codex_turns shape but with
- * a pluggable AgentRuntime instead of hard-coded Codex.
+ * Hardening (2026-07-25): mirrors pi-dispatch's `maxStalledCount: 0`.
+ * A turn that throws is treated as a fatal infra failure for this
+ * attempt — we do NOT silently retry the same turn. The RetryPolicy
+ * at the orchestrator layer decides whether to start a fresh attempt,
+ * and only for infra errors (agent "done"/"blocked" never retry).
  */
 
-import type { TrackedWork, RunState, AgentEvent } from "@aquan/core"
+import type { AgentEvent, RunState, TrackedWork } from "@aquan/core"
 import type { AgentRuntime, AgentSession, TurnResult } from "./runtime"
-import { buildInitialPrompt, buildContinuationPrompt } from "./prompt-builder"
+import { buildContinuationPrompt, buildInitialPrompt } from "./prompt-builder"
 
 export interface RunOpts {
   /** Max turns per WorkItem attempt (default 20, matches Symphony). */
@@ -26,6 +29,12 @@ export interface RunOutcome {
   turnCount: number
   message?: string
   error?: string
+  /**
+   * "infra" if the run failed due to runtime/transport error → eligible
+   * for retry per RetryPolicy. "agent" if the agent itself returned
+   * done/blocked/failed → not retried. Mirrors pi-dispatch rule.
+   */
+  failureKind?: "infra" | "agent"
 }
 
 /** Execute one WorkItem attempt. Returns the final state + collected events. */
@@ -37,11 +46,22 @@ export async function runWork(
   const maxTurns = opts.maxTurns ?? 20
   const prompt = buildInitialPrompt(work)
 
-  const session: AgentSession = await runtime.startSession({
-    workspacePath: work.workspace?.path ?? "(in-memory)",
-    workId: work.id,
-    prompt,
-  })
+  let session: AgentSession
+  try {
+    session = await runtime.startSession({
+      workspacePath: work.workspace?.path ?? "(in-memory)",
+      workId: work.id,
+      prompt,
+    })
+  } catch (err) {
+    return {
+      state: "failed",
+      events: [],
+      turnCount: 0,
+      error: err instanceof Error ? err.message : String(err),
+      failureKind: "infra",
+    }
+  }
 
   const events: AgentEvent[] = []
   let turnCount = 0
@@ -50,6 +70,8 @@ export async function runWork(
   try {
     for (let turn = 1; turn <= maxTurns; turn++) {
       const turnPrompt = turn === 1 ? prompt : buildContinuationPrompt(turn, maxTurns)
+      // Hardening: a turn throwing is fatal for this attempt. Do not
+      // catch-and-retry-in-loop — that would silently burn the turn budget.
       lastResult = await session.runTurn(turnPrompt)
       events.push(...lastResult.events)
       turnCount = turn
@@ -59,14 +81,21 @@ export async function runWork(
       // "continue" -> loop again
     }
   } catch (err) {
+    // Infra failure (transport, runtime crash, etc.). Return immediately
+    // with failureKind="infra" so RetryPolicy can decide.
     return {
       state: "failed",
       events,
       turnCount,
       error: err instanceof Error ? err.message : String(err),
+      failureKind: "infra",
     }
   } finally {
-    await runtime.stopSession(session)
+    try {
+      await runtime.stopSession(session)
+    } catch {
+      // stopSession failures are best-effort; don't mask the original outcome.
+    }
   }
 
   const state: RunState =
@@ -81,5 +110,7 @@ export async function runWork(
     turnCount,
     message: lastResult?.message,
     error: lastResult?.error,
+    // done/blocked/maxTurns are all "agent" decisions — not eligible for retry.
+    failureKind: state === "failed" ? "agent" : undefined,
   }
 }
