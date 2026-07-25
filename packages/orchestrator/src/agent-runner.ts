@@ -16,7 +16,11 @@
 
 import type { AgentEvent, RunState, TrackedWork } from "@aquan/core"
 import type { AgentRuntime, AgentSession, TurnResult } from "./runtime"
-import { buildContinuationPrompt, buildInitialPrompt } from "./prompt-builder"
+import {
+  buildContinuationPrompt,
+  buildInitialPrompt,
+  buildInitialPromptParts,
+} from "./prompt-builder"
 
 export interface RunOpts {
   /** Max turns per WorkItem attempt (default 20, matches Symphony). */
@@ -44,6 +48,10 @@ export async function runWork(
   opts: RunOpts = {},
 ): Promise<RunOutcome> {
   const maxTurns = opts.maxTurns ?? 20
+  // Build the two-slot prompt so runtimes that separate system/user slots
+  // (PiRuntime) can isolate untrusted content per hardening iron rule 1.
+  // The legacy single-string form is used for runTurn continuation inputs.
+  const parts = buildInitialPromptParts(work)
   const prompt = buildInitialPrompt(work)
 
   let session: AgentSession
@@ -52,6 +60,7 @@ export async function runWork(
       workspacePath: work.workspace?.path ?? "(in-memory)",
       workId: work.id,
       prompt,
+      systemPrompt: parts.system,
     })
   } catch (err) {
     return {

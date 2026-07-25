@@ -13,7 +13,9 @@
   },
   "dependencies": {
     "@aquan/core": "workspace:*",
-    "@aquan/orchestrator": "workspace:*"
+    "@aquan/orchestrator": "workspace:*",
+    "@earendil-works/pi-agent-core": "0.82.0",
+    "@earendil-works/pi-ai": "0.82.0"
   },
   "devDependencies": {
     "@types/bun": "^1.3.4",

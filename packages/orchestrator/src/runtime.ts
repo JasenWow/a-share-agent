@@ -25,6 +25,12 @@ export interface AgentRuntime {
     workspacePath: string
     workId: string
     prompt: string
+    /**
+     * Trusted system prompt for runtimes that separate system/user slots
+     * (e.g. PiRuntime). When omitted, runtimes should derive a sensible
+     * default from `prompt` or use their own persona.
+     */
+    systemPrompt?: string
   }): Promise<AgentSession>
 
   /** Stop a previously started session, releasing resources. */
