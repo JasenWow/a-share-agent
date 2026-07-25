@@ -26,6 +26,7 @@ Thumbs.db
 # Output
 out/
 node_modules
+*.tsbuildinfo
 
 # Worktrees (isolated dev workspaces)
 .worktrees/

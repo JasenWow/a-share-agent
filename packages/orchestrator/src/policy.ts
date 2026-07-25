@@ -61,7 +61,7 @@ export class SpendGuard {
   private monthly = 0
 
   constructor(
-    private readonly policy: BudgetPolicy,
+    public readonly policy: BudgetPolicy,
     clock: () => Date = () => new Date(),
   ) {
     this.clock = clock

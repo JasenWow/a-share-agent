@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Database, Sparkles, BarChart3, Users, LineChart, FlaskConical, History } from "lucide-react"
+import { Database, Sparkles, BarChart3, Users, LineChart, FlaskConical, History, Workflow } from "lucide-react"
 
 import { DatabaseSwitcher } from "@/components/sidebar/database-switcher"
 import { NavMain } from "@/components/sidebar/nav-main"
@@ -52,6 +52,11 @@ const baseNavItems = [
     title: "Databases",
     url: "/databases",
     icon: Database,
+  },
+  {
+    title: "Orchestration",
+    url: "/orchestration",
+    icon: Workflow,
   },
 ]
 
