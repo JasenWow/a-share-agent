@@ -112,7 +112,7 @@ export class PiRuntime implements AgentRuntime {
   }
 
   private resolveModel(): Model<unknown> {
-    const { provider, model } = this.resolved
+    const { provider, model, baseUrl } = this.resolved
     const found = getBuiltinModel(provider, model)
     if (!found) {
       const available = listAvailableModelIds(provider)
@@ -120,6 +120,11 @@ export class PiRuntime implements AgentRuntime {
         `PiRuntime: model "${model}" not found under provider "${provider}". ` +
           `Available: ${available.length > 0 ? available.join(", ") : "(none — check provider id)"}`,
       )
+    }
+    // Apply baseUrl override if the caller (or AQUAN_BASE_URL env) supplied one.
+    // We clone so we don't mutate the SDK's cached model registry.
+    if (baseUrl && baseUrl.trim() !== "") {
+      return { ...(found as Model<unknown>), baseUrl } as Model<unknown>
     }
     return found as Model<unknown>
   }

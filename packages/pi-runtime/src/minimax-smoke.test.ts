@@ -12,9 +12,9 @@ import { describe, expect, test } from "bun:test"
 import { PiRuntime } from "./runtime"
 
 const key =
+  process.env.AQUAN_API_KEY ??
   process.env.MINIMAX_API_KEY ??
-  process.env.MINIMAX_CN_API_KEY ??
-  process.env.AQUAN_MINIMAX_KEY
+  process.env.MINIMAX_CN_API_KEY
 
 describe.skipIf(!key)("PiRuntime + MiniMax (real API)", () => {
   test(
