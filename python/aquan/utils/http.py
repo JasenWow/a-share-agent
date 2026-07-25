@@ -55,6 +55,24 @@ def get_last_params_hash() -> str:
     return _last_params_hash
 
 
+def _is_loopback_url(url: str) -> bool:
+    """True if url points at localhost or 127.0.0.1 (should bypass any proxy)."""
+    lowered = url.lower()
+    return "://localhost" in lowered or "://127.0.0.1" in lowered or "://[::1]" in lowered
+
+
+def _bypass_proxy_if_loopback(url: str) -> dict[str, str | None] | None:
+    """For loopback targets, return an explicit empty proxy map so requests
+    ignores system/HTTP_PROXY settings that would otherwise route the call
+    through a VPN/forwarder (which returns 503 for localhost services).
+
+    Returns None for non-loopback URLs so the default proxy resolution applies.
+    """
+    if _is_loopback_url(url):
+        return {"http": None, "https": None}
+    return None
+
+
 def _ensure_session(source: str, url: str, timeout: int = 10) -> str:
     """Handshake with the MCP source, return and cache the session-id.
 
@@ -77,7 +95,8 @@ def _ensure_session(source: str, url: str, timeout: int = 10) -> str:
         "Content-Type": "application/json",
         "Accept": "application/json, text/event-stream",
     }
-    resp = requests.post(url, json=init_payload, headers=headers, timeout=timeout)
+    proxies = _bypass_proxy_if_loopback(url)
+    resp = requests.post(url, json=init_payload, headers=headers, timeout=timeout, proxies=proxies)
     resp.raise_for_status()
 
     session_id = resp.headers.get("mcp-session-id")
@@ -94,6 +113,7 @@ def _ensure_session(source: str, url: str, timeout: int = 10) -> str:
         json=notif,
         headers={**headers, "mcp-session-id": session_id},
         timeout=timeout,
+        proxies=proxies,
     )
 
     _sessions[source] = session_id
@@ -168,7 +188,9 @@ def call(
                 "Accept": "application/json, text/event-stream",
                 "mcp-session-id": session_id,
             }
-            resp = requests.post(url, json=payload, headers=headers, timeout=timeout)
+            resp = requests.post(
+                url, json=payload, headers=headers, timeout=timeout, proxies=_bypass_proxy_if_loopback(url)
+            )
             resp.raise_for_status()
 
             data = _parse_sse_json(resp.text)
