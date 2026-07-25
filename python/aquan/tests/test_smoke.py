@@ -71,6 +71,20 @@ def test_metrics_compile_query_smoke():
 def test_cli_main_returns_zero_for_version_like_invocation():
     from aquan.cli import main
 
-    # No args -> argparse prints help to stderr and returns 0 via our main().
-    # We just confirm main() is callable with an empty argv.
-    assert main([]) == 0
+    # No args -> argparse requires a subcommand and exits non-zero via SystemExit.
+    # We confirm main() surfaces this rather than silently returning 0.
+    with pytest.raises(SystemExit):
+        main([])
+
+
+def test_cli_main_health_action_runs():
+    """Calling a real subcommand should reach the dispatch layer (argparse
+    parses successfully). We don't exercise MCP here — `health` is the
+    cheapest action and we accept a non-zero exit if the MCP server is down.
+    """
+    from aquan.cli import main
+
+    # main() returns the subprocess exit code; we only assert it doesn't crash
+    # at the argparse/dispatch layer (it'll be 0 or 1 depending on MCP availability).
+    rc = main(["stock", "health"])
+    assert rc in (0, 1)

@@ -26,6 +26,12 @@ build-backend = "hatchling.build"
 # ships in the wheel.
 packages = ["aquan", "etl", "notebooks"]
 
+# Console script entry: `aquan <domain> <action>` after `uv sync`.
+# Removes the `uv run` overhead per CLI invocation — the agent (pi-runtime)
+# spawns `aquan` directly via Bun.spawn.
+[project.scripts]
+aquan = "aquan.cli.main:main"
+
 [dependency-groups]
 dev = [
     "pytest>=8.0",

@@ -25,6 +25,7 @@ import { builtinModels, getBuiltinModel } from "@earendil-works/pi-ai/providers/
 import type { Model } from "@earendil-works/pi-ai"
 import { streamSimple } from "@earendil-works/pi-ai/api/openai-completions"
 import { resolvePiRuntimeOptions, type PiRuntimeOptions } from "./config"
+import { ALL_CLI_TOOLS } from "./cli-tools"
 import { PiSession } from "./session"
 import { NullToolRegistration } from "./tools"
 
@@ -68,7 +69,10 @@ export class PiRuntime implements AgentRuntime {
         systemPrompt,
         model,
         thinkingLevel: this.resolved.thinkingLevel,
-        tools: [],
+        // The four domain tools (stock / factor / experiment / qlib) are
+        // spawned via `aquan <domain> <action> ...`. Pass disableCliTools:true
+        // to opt out (e.g. for tests that want a tool-less agent).
+        tools: this.resolved.disableCliTools ? [] : [...ALL_CLI_TOOLS],
         messages: [],
       },
     })

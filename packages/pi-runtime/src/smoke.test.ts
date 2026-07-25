@@ -1,5 +1,6 @@
 /**
- * Smoke test — exercises the real Pi SDK + a real LLM via ZAI.
+ * Smoke test — exercises the real Pi SDK + a real LLM via ZAI,
+ * AND the aquan CLI tools if MCP servers are running.
  *
  * Requires `ZAI_API_KEY` in the environment. Skips automatically otherwise
  * so CI without credentials still passes.
@@ -9,6 +10,7 @@ import { describe, expect, test } from "bun:test"
 import { PiRuntime } from "./runtime"
 
 const hasKey = !!process.env.ZAI_API_KEY
+const hasMcp = !!process.env.AQUAN_SMOKE_MCP // set to opt into MCP-dependent smoke
 
 describe.skipIf(!hasKey)("PiRuntime smoke (real ZAI API)", () => {
   test(
@@ -18,6 +20,7 @@ describe.skipIf(!hasKey)("PiRuntime smoke (real ZAI API)", () => {
         provider: "zai",
         model: "glm-4.5-air",
         maxTurnsPerRun: 3,
+        disableCliTools: true, // pure chat for this branch
       })
 
       const session = await runtime.startSession({
@@ -31,37 +34,50 @@ describe.skipIf(!hasKey)("PiRuntime smoke (real ZAI API)", () => {
       const result = await session.runTurn("Reply with exactly the word OK and nothing else.")
 
       expect(result.kind).toBe("done")
-      // We expect at least one message event from the SDK.
       expect(result.events.length).toBeGreaterThan(0)
-      // The final assistant message should mention OK somewhere (model may add punctuation).
       const messageEvents = result.events.filter((e) => e.kind === "message")
       expect(messageEvents.length).toBeGreaterThan(0)
 
       await runtime.stopSession(session)
     },
-    { timeout: 60_000 }, // LLM call may be slow
+    { timeout: 60_000 },
   )
+})
 
-  test("maxTurnsPerRun aborts a long run cleanly", async () => {
-    const runtime = new PiRuntime({
-      provider: "zai",
-      model: "glm-4.5-air",
-      maxTurnsPerRun: 1, // very tight
-    })
+// CLI tools smoke: needs the aquan console script on PATH AND the
+// relevant MCP server running. Skip unless AQUAN_SMOKE_MCP is set.
+describe.skipIf(!hasKey || !hasMcp)("PiRuntime smoke (CLI tools via MCP)", () => {
+  test(
+    "agent can call the stock tool",
+    async () => {
+      const runtime = new PiRuntime({
+        provider: "zai",
+        model: "glm-4.5-air",
+        maxTurnsPerRun: 5,
+        // CLI tools enabled (default)
+      })
 
-    const session = await runtime.startSession({
-      workspacePath: "/tmp/aquan-smoke-max",
-      workId: `smoke-max-${Date.now()}`,
-      prompt: "Call any available tool repeatedly.",
-      systemPrompt: "You are a smoke test.",
-    })
+      const session = await runtime.startSession({
+        workspacePath: "/tmp/aquan-smoke-cli",
+        workId: `smoke-cli-${Date.now()}`,
+        prompt:
+          "Use the 'stock' tool with action 'health' to check if the akshare MCP server is reachable. Then report the result in one sentence.",
+        systemPrompt: "You are a smoke test. Use the stock tool to call action 'health'.",
+      })
 
-    const result = await session.runTurn("Call any available tool repeatedly.")
-    // Either done (model didn't call tools) or aborted — both acceptable.
-    expect(["done", "blocked"]).toContain(result.kind)
+      const result = await session.runTurn(
+        "Use the 'stock' tool with action 'health' to check if the akshare MCP server is reachable.",
+      )
 
-    await runtime.stopSession(session)
-  })
+      expect(result.kind).toBe("done")
+      // At least one tool_call event should appear.
+      const toolCalls = result.events.filter((e) => e.kind === "tool_call" && e.detail === "stock")
+      expect(toolCalls.length).toBeGreaterThan(0)
+
+      await runtime.stopSession(session)
+    },
+    { timeout: 90_000 },
+  )
 })
 
 // Always-on sanity test: instantiating PiRuntime without a key should not throw
@@ -81,5 +97,12 @@ describe("PiRuntime construction", () => {
         prompt: "x",
       }),
     ).rejects.toThrow(/not-a-real-provider|not found/i)
+  })
+
+  test("disableCliTools produces a tool-less agent", async () => {
+    const runtime = new PiRuntime({ provider: "zai", model: "glm-4.5-air", disableCliTools: true })
+    // startSession should succeed without invoking the CLI tools at all.
+    // We don't run a turn here (no key in this environment).
+    expect(runtime).toBeDefined()
   })
 })

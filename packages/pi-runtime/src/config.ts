@@ -47,12 +47,19 @@ export interface PiRuntimeOptions {
    * the Nth turn_end event. Default: 20.
    */
   maxTurnsPerRun?: number
+
+  /**
+   * If true, the runtime registers NO CLI tools on the agent (pure chat).
+   * Useful for tests that don't want the agent attempting tool calls.
+   * Default: false (CLI tools enabled).
+   */
+  disableCliTools?: boolean
 }
 
 /** Normalize a partial options bag into a fully-resolved config. */
 export function resolvePiRuntimeOptions(
   opts: PiRuntimeOptions = {},
-): Required<Pick<PiRuntimeOptions, "provider" | "model" | "thinkingLevel" | "maxTurnsPerRun">> &
+): Required<Pick<PiRuntimeOptions, "provider" | "model" | "thinkingLevel" | "maxTurnsPerRun" | "disableCliTools">> &
   Pick<PiRuntimeOptions, "apiKey"> {
   return {
     provider: opts.provider ?? DEFAULT_PROVIDER,
@@ -60,5 +67,6 @@ export function resolvePiRuntimeOptions(
     apiKey: opts.apiKey,
     thinkingLevel: opts.thinkingLevel ?? "off",
     maxTurnsPerRun: opts.maxTurnsPerRun ?? 20,
+    disableCliTools: opts.disableCliTools ?? false,
   }
 }
