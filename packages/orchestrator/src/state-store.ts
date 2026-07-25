@@ -1,13 +1,32 @@
 /**
- * StateStore — in-memory record of TrackedWork.
+ * IStateStore — the storage contract the orchestrator depends on.
  *
- * Phase 5: simple Map-based store. Future iterations may persist to
- * DuckDB via @aquan/server's adapter.
+ * Two implementations live alongside this interface:
+ *   - StateStore            (in-memory, for tests + ephemeral runs)
+ *   - SqliteStateStore      (bun:sqlite-backed, survives restarts)
+ *
+ * The orchestrator doesn't care which one it gets; both honour the
+ * same surface so tests can use the fast in-memory version while
+ * production wires the SQLite one.
  */
 
-import type { TrackedWork, RunState } from "@aquan/core"
+import type { RunState, TrackedWork } from "@aquan/core"
 
-export class StateStore {
+export interface IStateStore {
+  upsert(work: TrackedWork): void
+  get(id: string): TrackedWork | undefined
+  listByStates(states: RunState[]): TrackedWork[]
+  listAll(): TrackedWork[]
+  transition(id: string, nextState: RunState, patch?: Partial<TrackedWork>): TrackedWork
+}
+
+/**
+ * StateStore — in-memory IStateStore.
+ *
+ * Default for tests and ephemeral runs. For persistence across restarts,
+ * use SqliteStateStore.
+ */
+export class StateStore implements IStateStore {
   private byId = new Map<string, TrackedWork>()
 
   upsert(work: TrackedWork): void {

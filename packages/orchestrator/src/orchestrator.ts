@@ -17,16 +17,28 @@ import type { PolicyBundle, RunState, TrackedWork, WorkItem } from "@aquan/core"
 import type { AgentRuntime } from "./runtime"
 import { runWork, type RunOpts } from "./agent-runner"
 import { ConcurrencyGate, SpendGuard } from "./policy"
+import type { IStateStore } from "./state-store"
 import { StateStore } from "./state-store"
+import { Scheduler, type ScheduleSpec } from "./scheduler"
 import type { Tracker } from "./trackers/tracker"
 
 export interface OrchestratorOpts {
   runtime: AgentRuntime
   trackers: Tracker[]
-  store?: StateStore
+  /**
+   * State store. Defaults to in-memory StateStore; pass SqliteStateStore
+   * for persistence across restarts.
+   */
+  store?: IStateStore
   runOpts?: RunOpts
   /** Policy bundle. Defaults to DEFAULT_POLICY (conservative caps). */
   policy?: PolicyBundle
+  /**
+   * SpendGuard override. Pass a PersistedSpendGuard (sharing the same
+   * SQLite file as `store`) to make the spend counters durable.
+   * Defaults to an in-memory SpendGuard built from policy.budget.
+   */
+  spendGuard?: SpendGuard
 }
 
 export interface TickOutcome {
@@ -36,14 +48,20 @@ export interface TickOutcome {
   outcomes: Record<RunState, number>
 }
 
+export interface TickOptions {
+  /** Only run trackers whose name is in this list; omit for all trackers. */
+  trackerNames?: string[]
+}
+
 export class Orchestrator {
-  readonly store: StateStore
+  readonly store: IStateStore
   private readonly runtime: AgentRuntime
   private readonly trackers: Tracker[]
   private readonly runOpts: RunOpts
   readonly policy: PolicyBundle
   readonly spend: SpendGuard
   readonly concurrency: ConcurrencyGate
+  private scheduler: Scheduler | undefined
 
   constructor(opts: OrchestratorOpts) {
     this.runtime = opts.runtime
@@ -51,7 +69,7 @@ export class Orchestrator {
     this.store = opts.store ?? new StateStore()
     this.runOpts = opts.runOpts ?? {}
     this.policy = opts.policy ?? DEFAULT_POLICY
-    this.spend = new SpendGuard(this.policy.budget)
+    this.spend = opts.spendGuard ?? new SpendGuard(this.policy.budget)
     this.concurrency = new ConcurrencyGate(this.policy.concurrency)
   }
 
@@ -61,8 +79,12 @@ export class Orchestrator {
    *
    * Items rejected by SpendGuard stay in `pending` and will be retried
    * on the next tick (when counters roll over or caps are raised).
+   *
+   * @param opts.trackerNames restrict this tick to a subset of trackers
+   *        (used by the Scheduler so different schedules can drive
+   *        different tracker sets on different cadences).
    */
-  async tick(): Promise<TickOutcome> {
+  async tick(opts?: TickOptions): Promise<TickOutcome> {
     const outcomes: Record<RunState, number> = {
       pending: 0,
       running: 0,
@@ -74,7 +96,12 @@ export class Orchestrator {
     let ran = 0
     let throttled = 0
 
-    for (const tracker of this.trackers) {
+    const filter = opts?.trackerNames
+    const trackers = filter
+      ? this.trackers.filter((t) => filter.includes(t.name))
+      : this.trackers
+
+    for (const tracker of trackers) {
       const items = await tracker.fetchByStates(["pending", "retrying"])
       for (const item of items) {
         // Hardening rule 1: pre-run spend check (before any provider call).
@@ -124,5 +151,30 @@ export class Orchestrator {
         stateChangedAt: now,
       }
     )
+  }
+
+  /**
+   * Start the in-process Scheduler driving this orchestrator.
+   * Each ScheduleSpec becomes one cron job that fires `tick({ trackerNames })`.
+   *
+   * Safe to call multiple times — subsequent calls replace the previous
+   * scheduler (the old one is stopped first).
+   */
+  start(schedules: ScheduleSpec[]): Scheduler {
+    this.stop()
+    this.scheduler = new Scheduler(this)
+    this.scheduler.start(schedules)
+    return this.scheduler
+  }
+
+  /** Halt the scheduler if one is running. Safe to call when not started. */
+  stop(): void {
+    this.scheduler?.stop()
+    this.scheduler = undefined
+  }
+
+  /** Current scheduler (if any). Useful for dashboard / tests. */
+  getScheduler(): Scheduler | undefined {
+    return this.scheduler
   }
 }

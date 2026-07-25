@@ -12,7 +12,8 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@aquan/core": "workspace:*"
+    "@aquan/core": "workspace:*",
+    "cron": "^4.0.0"
   },
   "devDependencies": {
     "@types/bun": "^1.3.4",

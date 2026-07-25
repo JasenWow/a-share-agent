@@ -11,12 +11,15 @@
  */
 
 export { Orchestrator } from "./orchestrator"
-export type { OrchestratorOpts, TickOutcome } from "./orchestrator"
+export type { OrchestratorOpts, TickOutcome, TickOptions } from "./orchestrator"
 
 export { runWork } from "./agent-runner"
 export type { RunOpts, RunOutcome } from "./agent-runner"
 
 export { StateStore } from "./state-store"
+export type { IStateStore } from "./state-store"
+export { SqliteStateStore } from "./sqlite-store"
+export type { SqliteStateStoreOptions } from "./sqlite-store"
 
 export { statePayload } from "./presenter"
 export type { StatePayload } from "./presenter"
@@ -43,6 +46,11 @@ export type { WorkspaceManager } from "./workspace"
 // Hardening exports
 export { SpendGuard, ConcurrencyGate } from "./policy"
 export type { SpendCheckResult, SpendRejectReason, SpendStats } from "./policy"
+export { PersistedSpendGuard } from "./persisted-spend-guard"
+
+// Scheduling exports (Stage 3)
+export { Scheduler } from "./scheduler"
+export type { ScheduleSpec, SchedulerLogger } from "./scheduler"
 
 export type { Tracker, AgentToolSpec } from "./trackers/tracker"
 export { MemoryTracker } from "./trackers/tracker"

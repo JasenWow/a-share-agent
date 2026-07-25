@@ -129,6 +129,19 @@ export class SpendGuard {
   }
 
   /**
+   * Set the daily / weekly / monthly counters directly.
+   *
+   * Public-so subclasses (PersistedSpendGuard) can replay a stored log
+   * into the in-memory state without going through recordSpend() (which
+   * would double-count by also bumping the windows). Not for external use.
+   */
+  setRawCounts(counts: { daily: number; weekly: number; monthly: number }): void {
+    this.daily = counts.daily
+    this.weekly = counts.weekly
+    this.monthly = counts.monthly
+  }
+
+  /**
    * Roll over any windows whose boundary has passed.
    *
    * Daily window resets at UTC midnight. Weekly window is a rolling
