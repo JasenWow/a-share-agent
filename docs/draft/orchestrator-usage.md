@@ -110,35 +110,37 @@ orchestrator 是独立 Bun 进程，负责：
 - 把状态写 SQLite（重启不丢）
 - 在 :3010 暴露 HTTP API 给 dashboard
 
-**目前还没有可执行 entry**（Stage 5 的任务），所以用 inline 方式跑：
-
 ```bash
-# 加载 .env
-export $(grep -v '^#' .env | xargs)
+# 模式 1：真 LLM agent（读 .env 的 AQUAN_* 配置）
+bun run orchestrator
 
-# 启动 orchestrator（StubRuntime + 内存 tracker，用于演示）
-bun -e '
-  import { Orchestrator, MemoryTracker, StubRuntime, startOrchestratorServer } from "@aquan/orchestrator";
+# 模式 2：StubRuntime（不调 LLM，用于 dashboard 开发/演示）
+bun run orchestrator:stub
 
-  const tracker = new MemoryTracker();
-  tracker.seed([{
-    id: "demo-1", title: "Demo work", type: "sedimentation",
-    description: "List current experiments and summarize.", createdAt: new Date().toISOString(),
-    state: "pending",
-  }]);
-
-  const orch = new Orchestrator({
-    runtime: new StubRuntime(),  // 换成 new PiRuntime() 跑真 LLM
-    trackers: [tracker],
-  });
-
-  orch.start([{ cron: "*/30 * * * * *", name: "demo-loop" }]);
-  startOrchestratorServer(orch, 3010);
-  console.log("orchestrator on http://localhost:3010 (Ctrl+C to stop)");
-'
+# 模式 3：seed 一条 demo work + 真 LLM（看完整 agent 跑一遍）
+bun run orchestrator:seed
 ```
 
-要跑**真 LLM agent**，把 `new StubRuntime()` 换成 `new PiRuntime()`（从 `@aquan/pi-runtime` import）。会读 `.env` 里的 `AQUAN_*` 配置。
+三种模式的区别：
+
+| 模式 | runtime | trackers | scheduler | 用途 |
+|---|---|---|---|---|
+| `orchestrator` | PiRuntime（真 LLM）| FactorMining + FreeExploration | cron 启动 | 生产 |
+| `orchestrator:stub` | StubRuntime | FactorMining + FreeExploration | 不启动 | dashboard 开发 |
+| `orchestrator:seed` | PiRuntime | MemoryTracker + 1 条 demo work | 不启动 | 端到端验证 |
+
+启动后看到：
+```
+[orchestrator] mode: real
+[orchestrator] runtime: PiRuntime
+[orchestrator] trackers: factor-mining, free-exploration
+[orchestrator] schedules: factor-mining-loop, daily-exploration
+[orchestrator] store: .../data/orchestrator/state.db
+[orchestrator] HTTP: http://localhost:3010
+[orchestrator] Ctrl+C to stop.
+```
+
+PiRuntime 读 `.env` 的 `AQUAN_PROVIDER` / `AQUAN_MODEL` / `AQUAN_API_KEY` / `AQUAN_BASE_URL`。如果 key 缺失或 provider 不可用，自动 fallback 到 StubRuntime（日志会告警）。
 
 ## 4. 启动 dashboard（看三态视图）
 
@@ -235,8 +237,7 @@ uv run aquan qlib eval --expression 'Mean($close, 20)' --instruments csi300
 
 | 限制 | 说明 | 计划 |
 |---|---|---|
-| 无 orchestrator 可执行 entry | 只能 `bun -e` 跑 | Stage 5：`packages/orchestrator/src/entry.ts` |
-| Tracker 是 stub | FactorMining/FreeExploration 返回空 | 后续：真接 internal-store / 定时生成任务 |
+| Tracker 是 stub | FactorMining/FreeExploration 返回空（seed 模式用 MemoryTracker 演示）| 后续：真接 internal-store / 定时生成任务 |
 | 无 auth | orchestrator :3010 任何人可访问 | localhost-only 部署足够；多用户时加 |
 | 无 SSE | dashboard 2s poll | 后续如需更实时改 SSE |
 | tushare import-time raise | 缺 TUSHARE_TOKEN 时 server.py 直接崩 | 改 lazy raise（独立任务）|
