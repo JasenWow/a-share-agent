@@ -15,7 +15,7 @@
 import { DEFAULT_POLICY, sessionId } from "@aquan/core"
 import type { PolicyBundle, RunState, TrackedWork, WorkItem } from "@aquan/core"
 import type { AgentRuntime } from "./runtime"
-import { runWork, type RunOpts } from "./agent-runner"
+import { runWork, type RunOpts, type RunOutcome } from "./agent-runner"
 import { ConcurrencyGate, SpendGuard } from "./policy"
 import type { IStateStore } from "./state-store"
 import { StateStore } from "./state-store"
@@ -104,6 +104,15 @@ export class Orchestrator {
     for (const tracker of trackers) {
       const items = await tracker.fetchByStates(["pending", "retrying"])
       for (const item of items) {
+        // Backoff gate: a `retrying` item whose backoff window hasn't
+        // elapsed is skipped this tick (re-fetched next tick). This is
+        // what turns "poll every 30s" into exponential backoff.
+        const existing = this.store.get(item.id)
+        if (existing?.nextRetryAt && new Date(existing.nextRetryAt) > new Date()) {
+          outcomes.retrying += 1
+          continue
+        }
+
         // Hardening rule 1: pre-run spend check (before any provider call).
         const check = this.spend.canStart()
         if (!check.allowed) {
@@ -121,13 +130,33 @@ export class Orchestrator {
           // Spend is recorded whether the run succeeded or failed —
           // an attempt is a spend unit (pi-dispatch model).
           this.spend.recordSpend()
-          this.store.transition(tracked.id, result.state, {
+
+          // Retry decision: only infra failures retry (pi-dispatch rule —
+          // never pay twice for the same agent answer). Agent-done/blocked
+          // and agent-failed are terminal.
+          const nextState = this.decideRetry(tracked, result)
+          const patch: Partial<TrackedWork> = {
             turnCount: result.turnCount,
             lastMessage: result.message,
             error: result.error,
-          })
-          await tracker.updateState(tracked.id, result.state, result.error)
-          outcomes[result.state]++
+          }
+          if (nextState === "retrying") {
+            // Increment attempt for the upcoming retry, and stamp the
+            // backoff deadline so the next tick knows when to unblock.
+            patch.attempt = tracked.attempt + 1
+            patch.nextRetryAt = this.computeBackoff(tracked.attempt)
+          }
+          // Clear nextRetryAt on any non-retrying transition so a later
+          // manual re-run (e.g. dashboard "Run now") isn't gated by a
+          // stale deadline. transition() merges the patch, so omitting
+          // the key keeps the old value — explicitly clear it.
+          if (nextState !== "retrying") {
+            patch.nextRetryAt = undefined
+          }
+
+          this.store.transition(tracked.id, nextState, patch)
+          await tracker.updateState(tracked.id, nextState, result.error)
+          outcomes[nextState]++
           ran += 1
         } finally {
           release()
@@ -151,6 +180,36 @@ export class Orchestrator {
         stateChangedAt: now,
       }
     )
+  }
+
+  /**
+   * Decide the next RunState after a run attempt. Only infrastructure
+   * failures (failureKind="infra") are eligible for retry, and only while
+   * attempts remain. Everything else — done, blocked, agent-failed — is
+   * terminal. Mirrors pi-dispatch: "never pay twice for the same answer."
+   */
+  private decideRetry(work: TrackedWork, result: RunOutcome): RunState {
+    // done/blocked pass through unchanged.
+    if (result.state !== "failed") return result.state
+    // An agent-decided failure (failureKind="agent" or undefined) is terminal.
+    if (result.failureKind !== "infra") return "failed"
+    // Infra failure: retry only if attempts remain.
+    if (work.attempt >= this.policy.retry.maxAttempts) return "failed"
+    return "retrying"
+  }
+
+  /**
+   * Compute the backoff deadline for the next retry. `completedAttempts`
+   * is the number of attempts already run (the just-failed attempt's
+   * count). Delay = backoffMs * 2^(completedAttempts-1):
+   *   attempt 1 fails → wait backoffMs * 1
+   *   attempt 2 fails → wait backoffMs * 2
+   *   attempt 3 fails → wait backoffMs * 4
+   */
+  private computeBackoff(completedAttempts: number): string {
+    const { backoffMs } = this.policy.retry
+    const delay = backoffMs * Math.pow(2, completedAttempts - 1)
+    return new Date(Date.now() + delay).toISOString()
   }
 
   /**
