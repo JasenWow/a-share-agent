@@ -4,6 +4,7 @@ import { Orchestrator } from "./orchestrator"
 import { MemoryTracker } from "./trackers/tracker"
 import { StubRuntime } from "./runtime"
 import { startOrchestratorServer } from "./http"
+import type { InternalStoreReader, CandidateFactor } from "./internal-store-reader"
 
 function makeWork(overrides: Partial<WorkItem> = {}): WorkItem {
   return {
@@ -18,9 +19,23 @@ function makeWork(overrides: Partial<WorkItem> = {}): WorkItem {
 
 let server: ReturnType<typeof Bun.serve> | undefined
 
-function startTestServer(orch: Orchestrator, port = 13410): string {
-  server = startOrchestratorServer(orch, port)
+function startTestServer(
+  orch: Orchestrator,
+  port = 13410,
+  reader?: InternalStoreReader,
+): string {
+  server = startOrchestratorServer(orch, port, reader ? { internalStoreReader: reader } : {})
   return `http://localhost:${port}`
+}
+
+/** A fake reader that returns canned candidates (no DB needed). */
+function makeFakeReader(candidates: CandidateFactor[], available = true): InternalStoreReader {
+  return {
+    listCandidates: () => candidates,
+    listActiveFactorExpressions: () => [],
+    candidateCount: () => candidates.length,
+    isAvailable: () => available,
+  } as InternalStoreReader
 }
 
 afterEach(() => {
@@ -166,5 +181,70 @@ describe("orchestrator HTTP — /healthz", () => {
     const base = startTestServer(orch)
     const payload = (await getJson(base, "/healthz")) as { ok: boolean }
     expect(payload.ok).toBe(true)
+  })
+})
+
+describe("orchestrator HTTP — /api/v1/factors/candidates", () => {
+  const sampleCandidate: CandidateFactor = {
+    id: 7,
+    name: "momentum_20d",
+    expression: "close/Ref(close,20)-1",
+    hypothesis: "20-day momentum",
+    operators: ["div", "sub", "ref"],
+    dataFields: ["close"],
+    ic: 0.05,
+    icir: 0.42,
+    turnover: 0.3,
+    sharpe: 1.1,
+    maxDrawdown: 0.18,
+    universe: "csi300",
+    period: "2020-2024",
+    confidence: 0.7,
+    rationale: "stable in backtest",
+    status: "candidate",
+    sourceExperimentId: 3,
+    createdAt: "2026-07-25T00:00:00Z",
+  }
+
+  test("returns candidates from the reader with source=internal-store", async () => {
+    const orch = new Orchestrator({ runtime: new StubRuntime(), trackers: [] })
+    const reader = makeFakeReader([sampleCandidate], true)
+    const base = startTestServer(orch, 13420, reader)
+    const payload = (await getJson(base, "/api/v1/factors/candidates")) as {
+      candidates: CandidateFactor[]
+      count: number
+      source: string
+    }
+    expect(payload.source).toBe("internal-store")
+    expect(payload.count).toBe(1)
+    expect(payload.candidates[0].name).toBe("momentum_20d")
+    expect(payload.candidates[0].confidence).toBe(0.7)
+  })
+
+  test("reports source=unavailable when reader present but DB missing", async () => {
+    const orch = new Orchestrator({ runtime: new StubRuntime(), trackers: [] })
+    const reader = makeFakeReader([], false)
+    const base = startTestServer(orch, 13421, reader)
+    const payload = (await getJson(base, "/api/v1/factors/candidates")) as {
+      candidates: unknown[]
+      count: number
+      source: string
+    }
+    expect(payload.source).toBe("unavailable")
+    expect(payload.candidates).toEqual([])
+    expect(payload.count).toBe(0)
+  })
+
+  test("reports source=unavailable when no reader wired (stub mode)", async () => {
+    const orch = new Orchestrator({ runtime: new StubRuntime(), trackers: [] })
+    const base = startTestServer(orch, 13422)
+    const payload = (await getJson(base, "/api/v1/factors/candidates")) as {
+      candidates: unknown[]
+      count: number
+      source: string
+    }
+    expect(payload.source).toBe("unavailable")
+    expect(payload.candidates).toEqual([])
+    expect(payload.count).toBe(0)
   })
 })

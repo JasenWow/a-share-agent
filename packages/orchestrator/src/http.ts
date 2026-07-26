@@ -6,6 +6,7 @@
  *   GET  /api/v1/work/:id      → single TrackedWork
  *   GET  /api/v1/schedules     → scheduler.status() (schedule fire/error counts)
  *   GET  /api/v1/spend         → spend counters + caps + window boundaries
+ *   GET  /api/v1/factors/candidates → internal-store candidate factors (agent output)
  *   POST /api/v1/tick          → run one orchestrator pass (dev/manual trigger)
  *
  * Stage 3 additions: /schedules + /spend + state payload now carries both
@@ -19,8 +20,24 @@
 
 import type { Orchestrator } from "./orchestrator"
 import { statePayload } from "./presenter"
+import type { InternalStoreReader } from "./internal-store-reader"
 
-export function startOrchestratorServer(orch: Orchestrator, port = 3010): ReturnType<typeof Bun.serve> {
+export interface OrchestratorHttpOptions {
+  /**
+   * Read-only view into the internal-store SQLite DB. When supplied, the
+   * server exposes `/api/v1/factors/candidates` so the dashboard can show
+   * factors the agent has persisted. Without it, that endpoint reports
+   * `source: "unavailable"`.
+   */
+  internalStoreReader?: InternalStoreReader
+}
+
+export function startOrchestratorServer(
+  orch: Orchestrator,
+  port = 3010,
+  opts: OrchestratorHttpOptions = {},
+): ReturnType<typeof Bun.serve> {
+  const reader = opts.internalStoreReader
   return Bun.serve({
     port,
     async fetch(req) {
@@ -63,6 +80,20 @@ export function startOrchestratorServer(orch: Orchestrator, port = 3010): Return
           dayStart: stats.dayStart.toISOString(),
           weekStart: stats.weekStart.toISOString(),
           monthStart: stats.monthStart.toISOString(),
+        })
+      }
+
+      if (url.pathname === "/api/v1/factors/candidates" && req.method === "GET") {
+        // Reader may be absent (stub mode) or the DB unavailable. Degrade
+        // gracefully so the dashboard can render an empty state.
+        if (!reader) {
+          return jsonResponse({ candidates: [], count: 0, source: "unavailable" })
+        }
+        const candidates = reader.listCandidates()
+        return jsonResponse({
+          candidates,
+          count: candidates.length,
+          source: reader.isAvailable() ? "internal-store" : "unavailable",
         })
       }
 

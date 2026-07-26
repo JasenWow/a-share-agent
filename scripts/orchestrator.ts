@@ -53,6 +53,7 @@ const { DEFAULT_POLICY } = await import(CORE)
 const {
   FreeExplorationTracker,
   FactorMiningTracker,
+  InternalStoreReader,
   MemoryTracker,
   Orchestrator,
   PersistedSpendGuard,
@@ -91,9 +92,25 @@ mkdirSync(dirname(dbPath), { recursive: true })
 const store = new SqliteStateStore(dbPath)
 const spendGuard = new PersistedSpendGuard(DEFAULT_POLICY.budget, store.dbHandle)
 
-// 3. Trackers. The real factor-mining / free-exploration trackers are
-// stubs today (they return empty WorkItem lists); MemoryTracker + --seed
-// gives the dashboard something to show.
+// 3. Trackers.
+//   - :seed → one MemoryTracker demo work (dashboard smoke)
+//   - real  → FactorMiningTracker (daily theme rotation, reads internal-store
+//             for dedup context) + FreeExplorationTracker (daily observation)
+//   - :stub → neither (manual tick only)
+//
+// The internal-store reader is shared: the tracker uses it for dedup context,
+// the HTTP server uses it for the /api/v1/factors/candidates endpoint.
+//
+// DB path: DATA_ROOT (same env var the MCP server reads) / cache / meta.db.
+// We anchor DATA_ROOT to the repo root so it matches regardless of cwd —
+// `aquan.core.config` does the same (parents[3] from its __file__). The MCP
+// server's own server.py defaults to "./data" (cwd-relative), so for the two
+// to agree you must start the MCP with DATA_ROOT=<repo>/data. We log the
+// resolved path + availability on boot so mismatches are visible.
+const REPO_ROOT = resolve(import.meta.dir, "..")
+const dataRoot = process.env.DATA_ROOT ? resolve(process.env.DATA_ROOT) : resolve(REPO_ROOT, "data")
+const internalStoreDb = resolve(dataRoot, "cache", "meta.db")
+const internalStoreReader = new InternalStoreReader(internalStoreDb)
 const trackers = []
 if (seedDemo) {
   const demo = new MemoryTracker()
@@ -110,7 +127,7 @@ if (seedDemo) {
   ])
   trackers.push(demo)
 } else {
-  trackers.push(new FactorMiningTracker())
+  trackers.push(new FactorMiningTracker(internalStoreReader))
   trackers.push(new FreeExplorationTracker())
 }
 
@@ -140,9 +157,12 @@ if (schedules.length > 0) {
   orch.start(schedules)
 }
 
-// 6. HTTP server.
+// 6. HTTP server. Wire the internal-store reader in real mode so the
+// dashboard can show candidate factors the agent has persisted. In
+// :seed/:stub mode the reader is absent — /api/v1/factors/candidates
+// then reports source=unavailable (the demo tracker doesn't write factors).
 const port = Number(process.env.ORCHESTRATOR_PORT ?? 3010)
-const server = startOrchestratorServer(orch, port)
+const server = startOrchestratorServer(orch, port, useStub || seedDemo ? {} : { internalStoreReader })
 
 // 7. Shutdown wiring.
 let shuttingDown = false
@@ -168,7 +188,9 @@ console.log(`[orchestrator] runtime: ${useStub ? "StubRuntime" : "PiRuntime"}`)
 console.log(`[orchestrator] trackers: ${trackers.map((t) => t.name).join(", ") || "(none)"}`)
 console.log(`[orchestrator] schedules: ${schedules.length === 0 ? "(manual tick only)" : schedules.map((s) => s.name).join(", ")}`)
 console.log(`[orchestrator] store: ${dbPath}`)
+console.log(`[orchestrator] internal-store: ${internalStoreDb} (${internalStoreReader.isAvailable() ? "available" : "not found — run the MCP server"})`)
 console.log(`[orchestrator] HTTP: http://localhost:${port}`)
 console.log(`[orchestrator]   GET  /api/v1/state`)
+console.log(`[orchestrator]   GET  /api/v1/factors/candidates`)
 console.log(`[orchestrator]   POST /api/v1/tick`)
 console.log(`[orchestrator] Ctrl+C to stop.`)
