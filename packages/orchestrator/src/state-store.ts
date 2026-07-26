@@ -10,7 +10,7 @@
  * production wires the SQLite one.
  */
 
-import type { RunState, TrackedWork } from "@aquan/core"
+import type { AgentEvent, AgentEventKind, RunState, TrackedWork } from "@aquan/core"
 
 /** Filter options for history queries. */
 export interface HistoryQuery {
@@ -22,9 +22,20 @@ export interface HistoryQuery {
   limit?: number
 }
 
+/** Filter options for per-work-item event queries. */
+export interface EventQuery {
+  /** Only include events of these kinds. */
+  kinds?: AgentEventKind[]
+  /** ISO8601 — only events with at >= this. */
+  since?: string
+  /** Max events to return. Default 500. */
+  limit?: number
+}
+
 /** Default states queried by the history view (terminal + in-retry). */
 export const DEFAULT_HISTORY_STATES: RunState[] = ["done", "failed", "retrying"]
 export const DEFAULT_HISTORY_LIMIT = 200
+export const DEFAULT_EVENT_LIMIT = 500
 
 export interface IStateStore {
   upsert(work: TrackedWork): void
@@ -38,6 +49,16 @@ export interface IStateStore {
    * trends without pulling the full table.
    */
   listHistory(opts?: HistoryQuery): TrackedWork[]
+  /**
+   * Persist agent events for a work item. Append-only — a retried work
+   * appends a second batch so the timeline shows the full story (attempt
+   * 1 failing, attempt 2 succeeding) rather than only the last attempt.
+   */
+  appendEvents(workId: string, events: AgentEvent[]): void
+  /**
+   * Load a work item's events, ascending by time (timeline order).
+   */
+  listEvents(workId: string, opts?: EventQuery): AgentEvent[]
 }
 
 /**
@@ -48,6 +69,7 @@ export interface IStateStore {
  */
 export class StateStore implements IStateStore {
   private byId = new Map<string, TrackedWork>()
+  private eventsByWork = new Map<string, AgentEvent[]>()
 
   upsert(work: TrackedWork): void {
     this.byId.set(work.id, work)
@@ -72,6 +94,21 @@ export class StateStore implements IStateStore {
       .filter((w) => states.includes(w.state))
       .filter((w) => (opts.since ? (w.stateChangedAt ?? "") >= opts.since : true))
       .sort((a, b) => (b.stateChangedAt ?? "").localeCompare(a.stateChangedAt ?? ""))
+      .slice(0, limit)
+  }
+
+  appendEvents(workId: string, events: AgentEvent[]): void {
+    const existing = this.eventsByWork.get(workId) ?? []
+    this.eventsByWork.set(workId, [...existing, ...events])
+  }
+
+  listEvents(workId: string, opts: EventQuery = {}): AgentEvent[] {
+    const limit = opts.limit ?? DEFAULT_EVENT_LIMIT
+    const all = this.eventsByWork.get(workId) ?? []
+    return all
+      .filter((e) => (opts.kinds ? opts.kinds.includes(e.kind) : true))
+      .filter((e) => (opts.since ? e.at >= opts.since : true))
+      .sort((a, b) => a.at.localeCompare(b.at))
       .slice(0, limit)
   }
 

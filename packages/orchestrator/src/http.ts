@@ -4,6 +4,7 @@
  * Endpoints (mirror Symphony's /api/v1/state shape, extended):
  *   GET  /api/v1/state         → counts + per-state lists + spend + schedules
  *   GET  /api/v1/work/:id      → single TrackedWork
+ *   GET  /api/v1/work/:id/events → event timeline for one work item
  *   GET  /api/v1/schedules     → scheduler.status() (schedule fire/error counts)
  *   GET  /api/v1/spend         → spend counters + caps + window boundaries
  *   GET  /api/v1/loops         → historical work items + byTracker/byDay aggregation
@@ -58,6 +59,22 @@ export function startOrchestratorServer(
         const work = orch.store.get(workMatch[1])
         if (!work) return new Response("not found", { status: 404 })
         return jsonResponse(work)
+      }
+
+      const eventsMatch = url.pathname.match(/^\/api\/v1\/work\/([^/]+)\/events$/)
+      if (eventsMatch && req.method === "GET") {
+        const workId = eventsMatch[1]
+        const kindParam = url.searchParams.get("kind")
+        const since = url.searchParams.get("since") ?? undefined
+        const limitParam = url.searchParams.get("limit")
+        const limit = limitParam ? Number(limitParam) : undefined
+        const kinds = kindParam
+          ? (kindParam.split(",").map((s) => s.trim()).filter(Boolean) as never)
+          : undefined
+        // Unknown work ids return an empty array (not 404) — a work may
+        // legitimately have no events yet (still running, or never produced).
+        const events = orch.store.listEvents(workId, { kinds, since, limit })
+        return jsonResponse({ workId, events, count: events.length })
       }
 
       if (url.pathname === "/api/v1/schedules" && req.method === "GET") {
