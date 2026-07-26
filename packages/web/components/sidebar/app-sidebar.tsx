@@ -58,6 +58,11 @@ const baseNavItems = [
     url: "/orchestration",
     icon: Workflow,
   },
+  {
+    title: "Loops",
+    url: "/loops",
+    icon: History,
+  },
 ]
 
 const adminNavItems = [

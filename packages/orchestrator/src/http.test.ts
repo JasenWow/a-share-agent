@@ -248,3 +248,43 @@ describe("orchestrator HTTP — /api/v1/factors/candidates", () => {
     expect(payload.count).toBe(0)
   })
 })
+
+describe("orchestrator HTTP — /api/v1/loops", () => {
+  test("returns history payload with aggregation", async () => {
+    const tracker = new MemoryTracker()
+    tracker.seed([{ ...makeWork({ id: "factor-mine-2026-07-20" }), state: "pending" } as never])
+    const orch = new Orchestrator({ runtime: new StubRuntime(), trackers: [tracker] })
+    await orch.tick() // → done
+    const base = startTestServer(orch, 13430)
+
+    const payload = (await getJson(base, "/api/v1/loops")) as {
+      generatedAt: string
+      items: Array<{ id: string; state: string }>
+      byTracker: Record<string, { total: number; done: number }>
+      totals: { total: number; done: number }
+    }
+    expect(payload.items.length).toBeGreaterThanOrEqual(1)
+    expect(payload.items[0].id).toBe("factor-mine-2026-07-20")
+    expect(payload.items[0].state).toBe("done")
+    expect(payload.byTracker["factor-mining"].done).toBe(1)
+    expect(payload.totals.done).toBe(1)
+  })
+
+  test("?state= filter narrows items", async () => {
+    const tracker = new MemoryTracker()
+    tracker.seed([
+      { ...makeWork({ id: "w-done" }), state: "pending" } as never,
+      { ...makeWork({ id: "w-pending" }), state: "pending" } as never,
+    ])
+    const orch = new Orchestrator({ runtime: new StubRuntime(), trackers: [tracker] })
+    await orch.tick() // both → done
+    const base = startTestServer(orch, 13431)
+
+    const payload = (await getJson(base, "/api/v1/loops?state=failed")) as {
+      items: unknown[]
+      totals: { total: number }
+    }
+    expect(payload.items).toEqual([])
+    expect(payload.totals.total).toBe(0)
+  })
+})
