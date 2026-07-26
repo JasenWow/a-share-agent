@@ -66,4 +66,11 @@ export interface TrackedWork extends WorkItem {
   stateChangedAt?: string
   /** Most recent error if state is retrying/blocked/failed. */
   error?: string
+  /**
+   * When the next retry attempt may start (ISO8601). Set when an infra
+   * failure transitions the work to `retrying`; cleared once the backoff
+   * elapses and the attempt runs. The orchestrator skips retrying items
+   * whose `nextRetryAt` is still in the future.
+   */
+  nextRetryAt?: string
 }
