@@ -23,7 +23,9 @@
       "version": "0.1.0",
       "dependencies": {
         "@aquan/core": "workspace:*",
+        "@duckdb/node-api": "1.5.4-r.1",
         "cron": "^4.0.0",
+        "hono": "^4.7.0",
       },
       "devDependencies": {
         "@types/bun": "^1.3.4",

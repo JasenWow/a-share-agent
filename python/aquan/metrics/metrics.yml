@@ -96,6 +96,23 @@ metrics:
     source_table: ods_backtest_runs
     dimensions: [strategy_name]
 
+  # ========== 数据运维指标（2 个） ==========
+  - name: quality_pass_rate
+    description: 指定数据集 + 维度 + 窗口内 passed / total 的比率
+    formula: avg(case when passed then 1.0 else 0.0 end)
+    unit: ratio (0 ~ 1)
+    category: data_operations
+    source_table: quality_check_results
+    dimensions: [dataset, dimension, run_id]
+
+  - name: freshness_lag_days
+    description: 最新 completed run 的 session_date 与 now 的交易日差；NULL = 无 completed run
+    formula: 'max_session_date'  # 控制面 SQL 替换；语义层仅做语义字段定义
+    unit: trading_days
+    category: data_operations
+    source_table: pipeline_runs
+    dimensions: [dataset]
+
 # ========== 维度词典 ==========
 dimensions:
   - name: universe
@@ -116,3 +133,12 @@ dimensions:
   - name: end_date
     description: 回测结束日
     source: ods_backtest_runs.end_date
+  - name: dataset
+    description: 数据集名（如 equity_daily）
+    source: quality_check_results.dataset
+  - name: dimension
+    description: 质量维度（completeness / uniqueness / validity / freshness）
+    values: [completeness, uniqueness, validity, freshness]
+  - name: run_id
+    description: PipelineRun 唯一标识
+    source: quality_check_results.run_id

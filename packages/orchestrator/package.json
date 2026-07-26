@@ -9,11 +9,14 @@
     "dev": "bun run --watch src/index.ts",
     "build": "bun build src/index.ts --outdir dist --target bun",
     "typecheck": "tsc --noEmit",
-    "test": "bun test"
+    "test": "bun test",
+    "test:control-plane": "bun test src/control-plane"
   },
   "dependencies": {
     "@aquan/core": "workspace:*",
-    "cron": "^4.0.0"
+    "@duckdb/node-api": "1.5.4-r.1",
+    "cron": "^4.0.0",
+    "hono": "^4.7.0"
   },
   "devDependencies": {
     "@types/bun": "^1.3.4",
