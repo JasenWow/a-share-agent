@@ -183,6 +183,87 @@ export async function getLoopsHistory(opts: HistoryQuery = {}): Promise<HistoryP
   return (await fetchJson(getLoopsHistoryKey(opts))) as HistoryPayload
 }
 
+// --- Candidate review (promote / reject) ---
+
+export interface FactorMutationResponse {
+  ok: boolean
+  factorId: number
+  targetStatus?: "active" | "rejected"
+  error?: "not-found" | "not-candidate" | "unavailable"
+  currentStatus?: string | null
+  message?: string
+  reviewer?: string
+  notes?: string
+  reason?: string
+}
+
+export async function promoteCandidate(
+  factorId: number,
+  opts: { reviewer?: string; notes?: string } = {},
+): Promise<FactorMutationResponse> {
+  const res = await fetch(
+    `${ORCHESTRATOR_URL}/api/v1/factors/${factorId}/promote`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(opts),
+    },
+  )
+  return (await res.json()) as FactorMutationResponse
+}
+
+export async function rejectCandidate(
+  factorId: number,
+  opts: { reason?: string; reviewer?: string } = {},
+): Promise<FactorMutationResponse> {
+  const res = await fetch(
+    `${ORCHESTRATOR_URL}/api/v1/factors/${factorId}/reject`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(opts),
+    },
+  )
+  return (await res.json()) as FactorMutationResponse
+}
+
+// --- Candidate list (read path for the review panel) ---
+
+export interface CandidateFactor {
+  id: number
+  name: string
+  expression: string
+  hypothesis: string | null
+  operators: string[]
+  dataFields: string[]
+  ic: number | null
+  icir: number | null
+  turnover: number | null
+  sharpe: number | null
+  maxDrawdown: number | null
+  universe: string | null
+  period: string | null
+  confidence: number | null
+  rationale: string | null
+  status: string
+  sourceExperimentId: number | null
+  createdAt: string | null
+}
+
+export interface CandidatesPayload {
+  candidates: CandidateFactor[]
+  count: number
+  source: "internal-store" | "unavailable"
+}
+
+export function getCandidatesKey() {
+  return `${ORCHESTRATOR_URL}/api/v1/factors/candidates`
+}
+
+export async function getCandidates(): Promise<CandidatesPayload> {
+  return (await fetchJson(getCandidatesKey())) as CandidatesPayload
+}
+
 export async function triggerTick(trackers?: string[]): Promise<TickOutcome> {
   const qs = trackers && trackers.length > 0 ? `?trackers=${encodeURIComponent(trackers.join(","))}` : ""
   return (await fetchJson(`${ORCHESTRATOR_URL}/api/v1/tick${qs}`, { method: "POST" })) as TickOutcome

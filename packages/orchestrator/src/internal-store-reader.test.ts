@@ -207,3 +207,131 @@ describe("InternalStoreReader", () => {
     }
   })
 })
+
+describe("InternalStoreReader — promote / reject write path", () => {
+  test("promoteCandidate moves candidate → active", () => {
+    const made = makeTempDb([
+      {
+        name: "mom20",
+        expression: "close/Ref(close,20)-1",
+        hypothesis: "",
+        operators: '["div"]',
+        data_fields: '["close"]',
+        ic: 0.05, icir: 0.4, turnover: 0.3, sharpe: 1.1, max_drawdown: 0.18,
+        universe: "csi300", period: "2020-2024",
+        walk_forward: '{"confidence":0.7,"rationale":"ok"}',
+        status: "candidate",
+        source_experiment_id: null,
+        created_at: "2026-07-26T00:00:00Z",
+      },
+    ])
+    try {
+      const reader = new InternalStoreReader(made.path)
+      // candidate id is 1 (first autoincrement row)
+      const res = reader.promoteCandidate(1, "alice", "good IC")
+      expect(res.ok).toBe(true)
+      expect(res.targetStatus).toBe("active")
+      expect(res.reviewer).toBe("alice")
+      expect(res.notes).toBe("good IC")
+      // No longer in candidate list
+      expect(reader.listCandidates()).toHaveLength(0)
+      // Now in active expressions
+      expect(reader.listActiveFactorExpressions()).toContain("close/Ref(close,20)-1")
+    } finally {
+      made.cleanup()
+    }
+  })
+
+  test("promoteCandidate on non-candidate returns not-candidate error", () => {
+    const made = makeTempDb([
+      {
+        name: "active_factor",
+        expression: "x",
+        hypothesis: "",
+        operators: '["x"]',
+        data_fields: '["close"]',
+        ic: null, icir: null, turnover: null, sharpe: null, max_drawdown: null,
+        universe: "", period: "",
+        walk_forward: null,
+        status: "active", // already active — can't promote
+        source_experiment_id: null,
+        created_at: "2026-07-26T00:00:00Z",
+      },
+    ])
+    try {
+      const reader = new InternalStoreReader(made.path)
+      const res = reader.promoteCandidate(1)
+      expect(res.ok).toBe(false)
+      expect(res.error).toBe("not-candidate")
+      expect(res.currentStatus).toBe("active")
+    } finally {
+      made.cleanup()
+    }
+  })
+
+  test("promoteCandidate on missing id returns not-found", () => {
+    const made = makeTempDb([])
+    try {
+      const reader = new InternalStoreReader(made.path)
+      const res = reader.promoteCandidate(999)
+      expect(res.ok).toBe(false)
+      expect(res.error).toBe("not-found")
+    } finally {
+      made.cleanup()
+    }
+  })
+
+  test("rejectCandidate sets rejected (no status guard)", () => {
+    const made = makeTempDb([
+      {
+        name: "c1",
+        expression: "expr1",
+        hypothesis: "",
+        operators: '["x"]',
+        data_fields: '["close"]',
+        ic: null, icir: null, turnover: null, sharpe: null, max_drawdown: null,
+        universe: "", period: "",
+        walk_forward: null,
+        status: "candidate",
+        source_experiment_id: null,
+        created_at: "2026-07-26T00:00:00Z",
+      },
+      {
+        name: "a1",
+        expression: "expr2",
+        hypothesis: "",
+        operators: '["x"]',
+        data_fields: '["close"]',
+        ic: null, icir: null, turnover: null, sharpe: null, max_drawdown: null,
+        universe: "", period: "",
+        walk_forward: null,
+        status: "active", // reject works on active too
+        source_experiment_id: null,
+        created_at: "2026-07-26T00:00:00Z",
+      },
+    ])
+    try {
+      const reader = new InternalStoreReader(made.path)
+      // Reject the candidate (id 1)
+      const r1 = reader.rejectCandidate(1, "low IC", "bob")
+      expect(r1.ok).toBe(true)
+      expect(r1.targetStatus).toBe("rejected")
+      expect(r1.reason).toBe("low IC")
+      expect(r1.reviewer).toBe("bob")
+      // Reject the active one (id 2) — no guard
+      const r2 = reader.rejectCandidate(2)
+      expect(r2.ok).toBe(true)
+      // Neither appears in candidates nor active anymore
+      expect(reader.listCandidates()).toHaveLength(0)
+      expect(reader.listActiveFactorExpressions()).toHaveLength(0)
+    } finally {
+      made.cleanup()
+    }
+  })
+
+  test("write methods return unavailable when DB missing", () => {
+    const reader = new InternalStoreReader("/nonexistent/meta.db")
+    expect(reader.promoteCandidate(1).error).toBe("unavailable")
+    expect(reader.rejectCandidate(1).error).toBe("unavailable")
+  })
+})

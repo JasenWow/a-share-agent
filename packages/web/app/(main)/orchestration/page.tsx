@@ -12,6 +12,7 @@ import { StateOverview } from "@/components/orchestration/state-overview"
 import { WorkList } from "@/components/orchestration/work-list"
 import { SchedulerPanel } from "@/components/orchestration/scheduler-panel"
 import { SpendPanel } from "@/components/orchestration/spend-panel"
+import { CandidatePanel } from "@/components/orchestration/candidate-panel"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Spinner } from "@/components/ui/spinner"
@@ -105,6 +106,7 @@ export default function OrchestrationPage() {
             </div>
             <aside className="space-y-4">
               <SpendPanel spend={state.spend} />
+              <CandidatePanel />
               <SchedulerPanel
                 schedules={sched?.schedules ?? state.schedules ?? []}
                 running={sched?.running ?? false}

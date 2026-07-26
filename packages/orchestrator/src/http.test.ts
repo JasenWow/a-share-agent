@@ -1,10 +1,15 @@
 import { afterEach, describe, expect, test } from "bun:test"
+import { Database } from "bun:sqlite"
+import { mkdtempSync, rmSync } from "node:fs"
+import { join } from "node:path"
+import { tmpdir } from "node:os"
 import type { WorkItem } from "@aquan/core"
 import { Orchestrator } from "./orchestrator"
 import { MemoryTracker } from "./trackers/tracker"
 import { StubRuntime } from "./runtime"
 import { startOrchestratorServer } from "./http"
-import type { InternalStoreReader, CandidateFactor } from "./internal-store-reader"
+import { InternalStoreReader } from "./internal-store-reader"
+import type { CandidateFactor } from "./internal-store-reader"
 
 function makeWork(overrides: Partial<WorkItem> = {}): WorkItem {
   return {
@@ -338,5 +343,123 @@ describe("orchestrator HTTP — /api/v1/work/:id/events", () => {
     }
     expect(payload.count).toBe(0)
     expect(payload.events).toEqual([])
+  })
+})
+
+/** Build a temp meta.db with one candidate row, return reader + cleanup. */
+function makeTempReaderWithCandidate(): { reader: InternalStoreReader; cleanup: () => void } {
+  const dir = mkdtempSync(join(tmpdir(), "aquan-http-promote-"))
+  const path = join(dir, "meta.db")
+  const db = new Database(path, { create: true })
+  db.run(`
+    CREATE TABLE factor_library (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, expression TEXT NOT NULL,
+      hypothesis TEXT, operators TEXT NOT NULL, data_fields TEXT NOT NULL,
+      ic REAL, icir REAL, turnover REAL, sharpe REAL, max_drawdown REAL,
+      universe TEXT, period TEXT, walk_forward TEXT, status TEXT DEFAULT 'active',
+      source_experiment_id INTEGER, created_at TEXT
+    );
+  `)
+  db.run(
+    `INSERT INTO factor_library (name, expression, hypothesis, operators, data_fields, status) VALUES (?, ?, ?, ?, ?, 'candidate');`,
+    "mom20",
+    "close/Ref(close,20)-1",
+    "",
+    '["div"]',
+    '["close"]',
+  )
+  db.close()
+  return {
+    reader: new InternalStoreReader(path),
+    cleanup: () => rmSync(dir, { recursive: true, force: true }),
+  }
+}
+
+describe("orchestrator HTTP — POST /api/v1/factors/:id/promote + /reject", () => {
+  let cleanup: () => void
+
+  afterEach(() => {
+    try {
+      cleanup?.()
+    } catch {
+      // ignore
+    }
+  })
+
+  test("promote moves candidate → active (200)", async () => {
+    const made = makeTempReaderWithCandidate()
+    cleanup = made.cleanup
+    const orch = new Orchestrator({ runtime: new StubRuntime(), trackers: [] })
+    const base = startTestServer(orch, 13450, made.reader)
+
+    const res = await fetch(`${base}/api/v1/factors/1/promote`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reviewer: "alice", notes: "good IC" }),
+    })
+    const payload = (await res.json()) as { ok: boolean; targetStatus?: string; reviewer?: string }
+    expect(res.status).toBe(200)
+    expect(payload.ok).toBe(true)
+    expect(payload.targetStatus).toBe("active")
+    expect(payload.reviewer).toBe("alice")
+    // Candidate list now empty
+    const after = (await getJson(base, "/api/v1/factors/candidates")) as { count: number }
+    expect(after.count).toBe(0)
+  })
+
+  test("promote on non-candidate returns 409", async () => {
+    const made = makeTempReaderWithCandidate()
+    cleanup = made.cleanup
+    // Promote first to make it active, then try again
+    made.reader.promoteCandidate(1)
+    const orch = new Orchestrator({ runtime: new StubRuntime(), trackers: [] })
+    const base = startTestServer(orch, 13451, made.reader)
+
+    const res = await fetch(`${base}/api/v1/factors/1/promote`, { method: "POST" })
+    const payload = (await res.json()) as { ok: boolean; error?: string }
+    expect(res.status).toBe(409)
+    expect(payload.ok).toBe(false)
+    expect(payload.error).toBe("not-candidate")
+  })
+
+  test("promote on missing id returns 404", async () => {
+    const made = makeTempReaderWithCandidate()
+    cleanup = made.cleanup
+    const orch = new Orchestrator({ runtime: new StubRuntime(), trackers: [] })
+    const base = startTestServer(orch, 13452, made.reader)
+
+    const res = await fetch(`${base}/api/v1/factors/999/promote`, { method: "POST" })
+    expect(res.status).toBe(404)
+  })
+
+  test("reject sets rejected (200)", async () => {
+    const made = makeTempReaderWithCandidate()
+    cleanup = made.cleanup
+    const orch = new Orchestrator({ runtime: new StubRuntime(), trackers: [] })
+    const base = startTestServer(orch, 13453, made.reader)
+
+    const res = await fetch(`${base}/api/v1/factors/1/reject`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason: "low IC", reviewer: "bob" }),
+    })
+    const payload = (await res.json()) as { ok: boolean; targetStatus?: string; reason?: string }
+    expect(res.status).toBe(200)
+    expect(payload.ok).toBe(true)
+    expect(payload.targetStatus).toBe("rejected")
+    expect(payload.reason).toBe("low IC")
+    // No longer a candidate
+    const after = (await getJson(base, "/api/v1/factors/candidates")) as { count: number }
+    expect(after.count).toBe(0)
+  })
+
+  test("returns 503 when no reader wired", async () => {
+    const orch = new Orchestrator({ runtime: new StubRuntime(), trackers: [] })
+    const base = startTestServer(orch, 13454)
+    const res = await fetch(`${base}/api/v1/factors/1/promote`, { method: "POST" })
+    expect(res.status).toBe(503)
+    const payload = (await res.json()) as { ok: boolean; error?: string }
+    expect(payload.ok).toBe(false)
+    expect(payload.error).toBe("unavailable")
   })
 })

@@ -9,6 +9,8 @@
  *   GET  /api/v1/spend         → spend counters + caps + window boundaries
  *   GET  /api/v1/loops         → historical work items + byTracker/byDay aggregation
  *   GET  /api/v1/factors/candidates → internal-store candidate factors (agent output)
+ *   POST /api/v1/factors/:id/promote → candidate → active (human review)
+ *   POST /api/v1/factors/:id/reject  → any → rejected (human review)
  *   POST /api/v1/tick          → run one orchestrator pass (dev/manual trigger)
  *
  * Stage 3 additions: /schedules + /spend + state payload now carries both
@@ -128,6 +130,38 @@ export function startOrchestratorServer(
         })
       }
 
+      const factorActionMatch = url.pathname.match(/^\/api\/v1\/factors\/(\d+)\/(promote|reject)$/)
+      if (factorActionMatch && req.method === "POST") {
+        const factorId = Number(factorActionMatch[1])
+        const action = factorActionMatch[2] as "promote" | "reject"
+        if (!reader) {
+          return jsonResponse({ ok: false, factorId, error: "unavailable" }, 503)
+        }
+        // Body is optional; reviewer/notes/reason are free-text audit fields.
+        let body: { reviewer?: string; notes?: string; reason?: string } = {}
+        try {
+          body = (await req.json()) ?? {}
+        } catch {
+          // empty / invalid body — proceed with defaults
+        }
+        const result =
+          action === "promote"
+            ? reader.promoteCandidate(factorId, body.reviewer, body.notes)
+            : reader.rejectCandidate(factorId, body.reason, body.reviewer)
+        // Audit log: reviewer/notes/reason aren't persisted in the DB, so
+        // record them here for traceability.
+        if (result.ok) {
+          const who = body.reviewer ?? "anonymous"
+          const extra = action === "promote" ? body.notes ?? "" : body.reason ?? ""
+          console.log(
+            `[orchestrator] factor ${action}: id=${factorId} by=${who}` +
+              (extra ? ` note="${extra.slice(0, 200)}"` : ""),
+          )
+        }
+        const status = result.ok ? 200 : result.error === "unavailable" ? 503 : result.error === "not-found" ? 404 : 409
+        return jsonResponse(result, status)
+      }
+
       if (url.pathname === "/api/v1/tick" && req.method === "POST") {
         const trackerNames = parseTrackerFilter(url.searchParams.get("trackers"))
         const result = await orch.tick({ trackerNames })
@@ -153,8 +187,9 @@ function parseTrackerFilter(param: string | null): string[] | undefined {
   return names.length > 0 ? names : undefined
 }
 
-function jsonResponse(body: unknown): Response {
+function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body, null, 2), {
+    status,
     headers: { "Content-Type": "application/json" },
   })
 }
