@@ -16,7 +16,7 @@
  * shapes instead of throwing. The orchestrator has no auth (localhost only).
  */
 
-import type { RunState, TrackedWork } from "@aquan/core"
+import type { AgentEvent, AgentEventKind, RunState, TrackedWork } from "@aquan/core"
 import { ORCHESTRATOR_URL } from "./config"
 
 // --- Response shapes (mirror orchestrator/src/presenter.ts) ---
@@ -87,6 +87,18 @@ export interface HistoryQuery {
   limit?: number
 }
 
+export interface WorkEventsPayload {
+  workId: string
+  events: AgentEvent[]
+  count: number
+}
+
+export interface WorkEventsQuery {
+  kinds?: AgentEventKind[]
+  since?: string
+  limit?: number
+}
+
 // --- SWR key generators ---
 
 export function getOrchestrationStateKey() {
@@ -95,6 +107,15 @@ export function getOrchestrationStateKey() {
 
 export function getOrchestrationWorkKey(id: string) {
   return `${ORCHESTRATOR_URL}/api/v1/work/${id}`
+}
+
+export function getOrchestrationWorkEventsKey(id: string, opts: WorkEventsQuery = {}) {
+  const params = new URLSearchParams()
+  if (opts.kinds && opts.kinds.length > 0) params.set("kind", opts.kinds.join(","))
+  if (opts.since) params.set("since", opts.since)
+  if (opts.limit) params.set("limit", String(opts.limit))
+  const qs = params.toString()
+  return `${ORCHESTRATOR_URL}/api/v1/work/${encodeURIComponent(id)}/events${qs ? `?${qs}` : ""}`
 }
 
 export function getOrchestrationSchedulesKey() {
@@ -135,6 +156,13 @@ export async function getOrchestrationWork(id: string): Promise<TrackedWork | nu
   } catch {
     return null
   }
+}
+
+export async function getOrchestrationWorkEvents(
+  id: string,
+  opts: WorkEventsQuery = {},
+): Promise<WorkEventsPayload> {
+  return (await fetchJson(getOrchestrationWorkEventsKey(id, opts))) as WorkEventsPayload
 }
 
 export async function getOrchestrationSchedules(): Promise<{

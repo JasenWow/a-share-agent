@@ -131,6 +131,15 @@ export class Orchestrator {
           // an attempt is a spend unit (pi-dispatch model).
           this.spend.recordSpend()
 
+          // Persist the event stream before result goes out of scope.
+          // Without this the whole turn-by-turn timeline (tool calls,
+          // messages, turn_end markers) would be GC'd — only lastMessage
+          // would survive. Retried attempts append a second batch so the
+          // timeline shows the full story.
+          if (result.events.length > 0) {
+            this.store.appendEvents(tracked.id, result.events)
+          }
+
           // Retry decision: only infra failures retry (pi-dispatch rule —
           // never pay twice for the same agent answer). Agent-done/blocked
           // and agent-failed are terminal.

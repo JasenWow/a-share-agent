@@ -15,9 +15,13 @@
  */
 
 import { Database } from "bun:sqlite"
-import type { RunState, TrackedWork } from "@aquan/core"
-import type { HistoryQuery, IStateStore } from "./state-store"
-import { DEFAULT_HISTORY_LIMIT, DEFAULT_HISTORY_STATES } from "./state-store"
+import type { AgentEvent, RunState, TrackedWork } from "@aquan/core"
+import type { EventQuery, HistoryQuery, IStateStore } from "./state-store"
+import {
+  DEFAULT_EVENT_LIMIT,
+  DEFAULT_HISTORY_LIMIT,
+  DEFAULT_HISTORY_STATES,
+} from "./state-store"
 
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS tracked_works (
@@ -33,6 +37,14 @@ CREATE TABLE IF NOT EXISTS tracked_works (
   state_changed_at TEXT,
   error TEXT,
   work_item_json TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS agent_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  work_id TEXT NOT NULL,
+  at TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  event_json TEXT NOT NULL
 );
 `
 
@@ -77,6 +89,9 @@ export class SqliteStateStore implements IStateStore {
     // History queries filter + sort by state_changed_at; index it so the
     // /loops endpoint stays fast as the table grows (rows are never deleted).
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_tracked_works_state_changed_at ON tracked_works(state_changed_at);`)
+    // Event-timeline queries are WHERE work_id=? ORDER BY at; composite index
+    // serves both the filter and the sort in one seek.
+    this.db.run(`CREATE INDEX IF NOT EXISTS idx_agent_events_work_at ON agent_events(work_id, at);`)
     if (!opts.disableWal && path !== ":memory:") {
       try {
         this.db.run("PRAGMA journal_mode = WAL;")
@@ -137,6 +152,39 @@ export class SqliteStateStore implements IStateStore {
     params.push(limit)
     const rows = this.db.query(sql).all(...params) as Row[]
     return rows.map(rowToWork)
+  }
+
+  appendEvents(workId: string, events: AgentEvent[]): void {
+    if (events.length === 0) return
+    // One prepared INSERT, executed per event. Using a transaction keeps
+    // a multi-event turn atomic (and faster than N independent writes).
+    const insert = this.db.prepare(
+      `INSERT INTO agent_events (work_id, at, kind, event_json) VALUES (?, ?, ?, ?);`,
+    )
+    this.db.transaction(() => {
+      for (const e of events) {
+        insert.run(workId, e.at, e.kind, JSON.stringify(e))
+      }
+    })()
+  }
+
+  listEvents(workId: string, opts: EventQuery = {}): AgentEvent[] {
+    const limit = opts.limit ?? DEFAULT_EVENT_LIMIT
+    let sql = `SELECT event_json FROM agent_events WHERE work_id = ?`
+    const params: unknown[] = [workId]
+    if (opts.kinds && opts.kinds.length > 0) {
+      const placeholders = opts.kinds.map(() => "?").join(",")
+      sql += ` AND kind IN (${placeholders})`
+      params.push(...opts.kinds)
+    }
+    if (opts.since) {
+      sql += ` AND at >= ?`
+      params.push(opts.since)
+    }
+    sql += ` ORDER BY at ASC LIMIT ?`
+    params.push(limit)
+    const rows = this.db.query(sql).all(...params) as { event_json: string }[]
+    return rows.map((r) => JSON.parse(r.event_json) as AgentEvent)
   }
 
   transition(id: string, nextState: RunState, patch: Partial<TrackedWork> = {}): TrackedWork {

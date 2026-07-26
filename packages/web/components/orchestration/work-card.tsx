@@ -1,48 +1,52 @@
 "use client"
 
+import Link from "next/link"
 import type { TrackedWork } from "@aquan/core"
 import { Card } from "@/components/ui/card"
 
 /**
  * One card per TrackedWork. Shows id, state dot, turn progress,
- * last event/message, and error (if any).
+ * last event/message, and error (if any). The whole card is a link to
+ * the work-item detail page (/orchestration/<id>), which renders the
+ * full event timeline.
  *
  * Cards are intentionally compact — the dashboard polls every 2s and
- * renders dozens of these. Click handling is left to the parent (future:
- * expand to a detail panel).
+ * renders dozens of these.
  */
 export function WorkCard({ work }: { work: TrackedWork }) {
   return (
-    <Card className="p-3 text-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <StateDot state={work.state} />
-            <span className="truncate font-mono text-xs text-muted-foreground" title={work.id}>
-              {work.id}
-            </span>
-          </div>
-          <div className="mt-1 truncate font-medium" title={work.title}>
-            {work.title}
-          </div>
-          {work.lastMessage && (
-            <div className="mt-1 line-clamp-2 text-xs text-muted-foreground" title={work.lastMessage}>
-              {work.lastMessage}
+    <Link href={`/orchestration/${encodeURIComponent(work.id)}`} className="block">
+      <Card className="cursor-pointer p-3 text-sm transition-colors hover:bg-accent">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <StateDot state={work.state} />
+              <span className="truncate font-mono text-xs text-muted-foreground" title={work.id}>
+                {work.id}
+              </span>
             </div>
-          )}
-          {work.error && (
-            <div className="mt-1 line-clamp-2 rounded bg-red-500/10 p-1 text-xs text-red-600 dark:text-red-300" title={work.error}>
-              {work.error}
+            <div className="mt-1 truncate font-medium" title={work.title}>
+              {work.title}
             </div>
-          )}
+            {work.lastMessage && (
+              <div className="mt-1 line-clamp-2 text-xs text-muted-foreground" title={work.lastMessage}>
+                {work.lastMessage}
+              </div>
+            )}
+            {work.error && (
+              <div className="mt-1 line-clamp-2 rounded bg-red-500/10 p-1 text-xs text-red-600 dark:text-red-300" title={work.error}>
+                {work.error}
+              </div>
+            )}
+          </div>
+          <div className="shrink-0 text-right text-[10px] text-muted-foreground">
+            {typeof work.turnCount === "number" && <div>turn {work.turnCount}</div>}
+            {work.startedAt && <div>{formatTime(work.startedAt)}</div>}
+            {work.lastEventAt && <div title={work.lastEventAt}>↻ {formatTime(work.lastEventAt)}</div>}
+          </div>
         </div>
-        <div className="shrink-0 text-right text-[10px] text-muted-foreground">
-          {typeof work.turnCount === "number" && <div>turn {work.turnCount}</div>}
-          {work.startedAt && <div>{formatTime(work.startedAt)}</div>}
-          {work.lastEventAt && <div title={work.lastEventAt}>↻ {formatTime(work.lastEventAt)}</div>}
-        </div>
-      </div>
-    </Card>
+      </Card>
+    </Link>
   )
 }
 

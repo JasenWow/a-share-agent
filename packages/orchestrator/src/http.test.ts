@@ -288,3 +288,55 @@ describe("orchestrator HTTP — /api/v1/loops", () => {
     expect(payload.totals.total).toBe(0)
   })
 })
+
+describe("orchestrator HTTP — /api/v1/work/:id/events", () => {
+  test("returns events after a tick produces them", async () => {
+    const tracker = new MemoryTracker()
+    tracker.seed([{ ...makeWork({ id: "w-events" }), state: "pending" } as never])
+    const orch = new Orchestrator({ runtime: new StubRuntime(), trackers: [tracker] })
+    await orch.tick() // → done (StubRuntime emits no events, so we seed some)
+    orch.store.appendEvents("w-events", [
+      { at: "2026-07-26T10:00:01Z", kind: "message", detail: "hello" },
+      { at: "2026-07-26T10:00:02Z", kind: "tool_call", detail: "factor list" },
+      { at: "2026-07-26T10:00:03Z", kind: "turn_end" },
+    ])
+    const base = startTestServer(orch, 13440)
+
+    const payload = (await getJson(base, "/api/v1/work/w-events/events")) as {
+      workId: string
+      events: Array<{ at: string; kind: string; detail?: string }>
+      count: number
+    }
+    expect(payload.workId).toBe("w-events")
+    expect(payload.count).toBe(3)
+    expect(payload.events[0].kind).toBe("message")
+    expect(payload.events[2].kind).toBe("turn_end")
+  })
+
+  test("?kind= filters events", async () => {
+    const orch = new Orchestrator({ runtime: new StubRuntime(), trackers: [] })
+    orch.store.appendEvents("w1", [
+      { at: "2026-07-26T10:00:01Z", kind: "message", detail: "a" },
+      { at: "2026-07-26T10:00:02Z", kind: "tool_call", detail: "x" },
+      { at: "2026-07-26T10:00:03Z", kind: "tool_result", detail: "y" },
+    ])
+    const base = startTestServer(orch, 13441)
+    const payload = (await getJson(base, "/api/v1/work/w1/events?kind=tool_call,tool_result")) as {
+      events: Array<{ kind: string }>
+      count: number
+    }
+    expect(payload.count).toBe(2)
+    expect(payload.events.every((e) => e.kind.startsWith("tool"))).toBe(true)
+  })
+
+  test("unknown work id returns empty array (not 404)", async () => {
+    const orch = new Orchestrator({ runtime: new StubRuntime(), trackers: [] })
+    const base = startTestServer(orch, 13442)
+    const payload = (await getJson(base, "/api/v1/work/never/events")) as {
+      events: unknown[]
+      count: number
+    }
+    expect(payload.count).toBe(0)
+    expect(payload.events).toEqual([])
+  })
+})
