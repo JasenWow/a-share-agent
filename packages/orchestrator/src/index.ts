@@ -25,6 +25,11 @@ export { statePayload } from "./presenter"
 export type { StatePayload } from "./presenter"
 
 export { startOrchestratorServer } from "./http"
+export type { OrchestratorHttpOptions } from "./http"
+
+// Internal-store reader (read-only view of factor_library for dedup + dashboard)
+export { InternalStoreReader } from "./internal-store-reader"
+export type { CandidateFactor } from "./internal-store-reader"
 
 export type {
   AgentRuntime,
