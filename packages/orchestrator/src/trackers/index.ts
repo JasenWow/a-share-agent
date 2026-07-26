@@ -1,5 +1,5 @@
 export * from "./tracker"
-// Phase 5: factor-mining and free-exploration trackers are stubs.
-// Concrete implementations arrive with their respective sub-project specs.
+// free-exploration is live (emits one daily observation WorkItem).
+// factor-mining remains a stub pending the internal-store hypothesis schema.
 export * from "./factor-mining"
 export * from "./free-exploration"
