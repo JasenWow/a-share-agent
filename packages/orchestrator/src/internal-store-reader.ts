@@ -46,6 +46,29 @@ export interface CandidateFactor {
   createdAt: string | null
 }
 
+/** Result of a promote/reject mutation. */
+export interface FactorMutationResult {
+  ok: boolean
+  factorId: number
+  /** New status when ok, e.g. "active" / "rejected". */
+  targetStatus?: "active" | "rejected"
+  /**
+   * Error code when !ok:
+   *   not-found       — factor id doesn't exist
+   *   not-candidate   — promote guard: row isn't status='candidate'
+   *   unavailable     — DB missing / locked / write failed
+   */
+  error?: "not-found" | "not-candidate" | "unavailable"
+  /** Current status (for not-candidate errors). */
+  currentStatus?: string | null
+  /** Diagnostic message (for unavailable errors). */
+  message?: string
+  /** Audit fields — returned for logging, NOT persisted to DB. */
+  reviewer?: string
+  notes?: string
+  reason?: string
+}
+
 interface FactorLibraryRow {
   id: number
   name: string
@@ -108,6 +131,74 @@ export class InternalStoreReader {
       return true
     } catch {
       return false
+    }
+  }
+
+  // --- write path (promote / reject) ---
+  //
+  // These open the DB read-write (without `readonly: true`), mirroring the
+  // internal-store MCP server's own per-call connect-and-write pattern. The
+  // guards (only `candidate` rows can be promoted) are re-implemented here
+  // rather than calling through MCP — keeps the orchestrator self-contained
+  // and avoids subprocess/IPC overhead per click.
+
+  /**
+   * Promote a candidate factor to active. Only `status='candidate'` rows
+   * may be promoted (matches promote_factor in internal-store/server.py).
+   * reviewer/notes are returned to the caller for audit logging but are
+   * NOT persisted (the MCP server has no DB columns for them either).
+   */
+  promoteCandidate(factorId: number, reviewer?: string, notes?: string): FactorMutationResult {
+    return this.mutate(factorId, "active", "candidate", { reviewer, notes })
+  }
+
+  /**
+   * Reject a factor (set status='rejected'). No status guard — any existing
+   * row may be rejected (matches reject_factor in internal-store/server.py).
+   * reason/reviewer are returned for audit logging, not persisted.
+   */
+  rejectCandidate(factorId: number, reason?: string, reviewer?: string): FactorMutationResult {
+    return this.mutate(factorId, "rejected", undefined, { reason, reviewer })
+  }
+
+  /**
+   * Shared write path. `requiredCurrentStatus` enforces the promote guard
+   * (reject passes undefined = no guard, matching MCP semantics).
+   */
+  private mutate(
+    factorId: number,
+    targetStatus: "active" | "rejected",
+    requiredCurrentStatus: string | undefined,
+    audit: { reviewer?: string; notes?: string; reason?: string },
+  ): FactorMutationResult {
+    let db: Database | undefined
+    try {
+      db = new Database(this.dbPath)
+      db.run("PRAGMA busy_timeout = 5000;")
+      const row = db.query(`SELECT status FROM factor_library WHERE id = ?;`).get(factorId) as
+        | { status: string | null }
+        | null
+      if (!row) {
+        return { ok: false, factorId, error: "not-found" }
+      }
+      if (requiredCurrentStatus && row.status !== requiredCurrentStatus) {
+        return { ok: false, factorId, error: "not-candidate", currentStatus: row.status ?? null }
+      }
+      db.run(`UPDATE factor_library SET status = ? WHERE id = ?;`, targetStatus, factorId)
+      return { ok: true, factorId, targetStatus, ...audit }
+    } catch (e) {
+      return {
+        ok: false,
+        factorId,
+        error: "unavailable",
+        message: e instanceof Error ? e.message : String(e),
+      }
+    } finally {
+      try {
+        db?.close()
+      } catch {
+        // ignore
+      }
     }
   }
 

@@ -32,7 +32,7 @@ export type { OrchestratorHttpOptions } from "./http"
 
 // Internal-store reader (read-only view of factor_library for dedup + dashboard)
 export { InternalStoreReader } from "./internal-store-reader"
-export type { CandidateFactor } from "./internal-store-reader"
+export type { CandidateFactor, FactorMutationResult } from "./internal-store-reader"
 
 export type {
   AgentRuntime,
