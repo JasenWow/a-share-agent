@@ -16,7 +16,8 @@
 
 import { Database } from "bun:sqlite"
 import type { RunState, TrackedWork } from "@aquan/core"
-import type { IStateStore } from "./state-store"
+import type { HistoryQuery, IStateStore } from "./state-store"
+import { DEFAULT_HISTORY_LIMIT, DEFAULT_HISTORY_STATES } from "./state-store"
 
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS tracked_works (
@@ -73,6 +74,9 @@ export class SqliteStateStore implements IStateStore {
     // Index columns for fast dashboard queries by state.
     this.db.run(SCHEMA_SQL)
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_tracked_works_state ON tracked_works(state);`)
+    // History queries filter + sort by state_changed_at; index it so the
+    // /loops endpoint stays fast as the table grows (rows are never deleted).
+    this.db.run(`CREATE INDEX IF NOT EXISTS idx_tracked_works_state_changed_at ON tracked_works(state_changed_at);`)
     if (!opts.disableWal && path !== ":memory:") {
       try {
         this.db.run("PRAGMA journal_mode = WAL;")
@@ -116,6 +120,22 @@ export class SqliteStateStore implements IStateStore {
 
   listAll(): TrackedWork[] {
     const rows = this.db.query(SELECT_ALL_SQL).all() as Row[]
+    return rows.map(rowToWork)
+  }
+
+  listHistory(opts: HistoryQuery = {}): TrackedWork[] {
+    const states = opts.states ?? DEFAULT_HISTORY_STATES
+    const limit = opts.limit ?? DEFAULT_HISTORY_LIMIT
+    const placeholders = states.map(() => "?").join(",")
+    let sql = `SELECT * FROM tracked_works WHERE state IN (${placeholders})`
+    const params: unknown[] = [...states]
+    if (opts.since) {
+      sql += ` AND state_changed_at >= ?`
+      params.push(opts.since)
+    }
+    sql += ` ORDER BY state_changed_at DESC LIMIT ?`
+    params.push(limit)
+    const rows = this.db.query(sql).all(...params) as Row[]
     return rows.map(rowToWork)
   }
 

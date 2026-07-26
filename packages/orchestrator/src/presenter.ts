@@ -120,3 +120,97 @@ function count(items: TrackedWork[], state: TrackedWork["state"]): number {
 function filter(items: TrackedWork[], state: TrackedWork["state"]): TrackedWork[] {
   return items.filter((w) => w.state === state)
 }
+
+// --- History payload (the /loops view) ---
+
+/** Counts for a single bucket (tracker or day). */
+export interface HistoryBucket {
+  done: number
+  failed: number
+  retrying: number
+  total: number
+}
+
+export interface HistoryPayload {
+  generatedAt: string
+  /** Items already sorted newest-first by stateChangedAt. */
+  items: TrackedWork[]
+  /** Aggregated counts keyed by derived tracker name. */
+  byTracker: Record<string, HistoryBucket>
+  /** Aggregated counts keyed by derived day (YYYY-MM-DD). */
+  byDay: Record<string, HistoryBucket>
+  totals: HistoryBucket
+}
+
+export interface HistoryPayloadOptions {
+  /** Filter items further by tracker (derived from id prefix). */
+  tracker?: string
+  states?: import("@aquan/core").RunState[]
+  since?: string
+  limit?: number
+}
+
+/**
+ * Build the /loops payload. Tracker + day are derived from the WorkItem id
+ * (e.g. `factor-mine-2026-07-20` → tracker "factor-mining", day "2026-07-20")
+ * rather than from timestamps — the id is stable across restarts and always
+ * carries both, while startedAt may be null for never-run items.
+ */
+export function historyPayload(
+  store: IStateStore,
+  opts: HistoryPayloadOptions = {},
+): HistoryPayload {
+  let items = store.listHistory({
+    states: opts.states,
+    since: opts.since,
+    limit: opts.limit,
+  })
+  if (opts.tracker) {
+    items = items.filter((w) => deriveTracker(w.id) === opts.tracker)
+  }
+
+  const byTracker: Record<string, HistoryBucket> = {}
+  const byDay: Record<string, HistoryBucket> = {}
+  const totals: HistoryBucket = { done: 0, failed: 0, retrying: 0, total: 0 }
+
+  for (const w of items) {
+    const t = deriveTracker(w.id)
+    const d = deriveDay(w.id)
+    bump(byTracker, t, w.state)
+    if (d) bump(byDay, d, w.state)
+    bumpTotals(totals, w.state)
+  }
+
+  return {
+    generatedAt: new Date().toISOString(),
+    items,
+    byTracker,
+    byDay,
+    totals,
+  }
+}
+
+function bump(buckets: Record<string, HistoryBucket>, key: string, state: TrackedWork["state"]): void {
+  if (!buckets[key]) buckets[key] = { done: 0, failed: 0, retrying: 0, total: 0 }
+  bumpTotals(buckets[key], state)
+}
+
+function bumpTotals(b: HistoryBucket, state: TrackedWork["state"]): void {
+  b.total += 1
+  if (state === "done") b.done += 1
+  else if (state === "failed") b.failed += 1
+  else if (state === "retrying") b.retrying += 1
+}
+
+/** Derive the tracker name from a WorkItem id prefix. */
+export function deriveTracker(id: string): string {
+  if (id.startsWith("factor-mine-")) return "factor-mining"
+  if (id.startsWith("free-exploration-")) return "free-exploration"
+  return "unknown"
+}
+
+/** Derive the day (YYYY-MM-DD) from a WorkItem id suffix, or null. */
+export function deriveDay(id: string): string | null {
+  const m = id.match(/(\d{4}-\d{2}-\d{2})$/)
+  return m ? m[1] : null
+}

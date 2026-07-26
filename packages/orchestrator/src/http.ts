@@ -6,6 +6,7 @@
  *   GET  /api/v1/work/:id      → single TrackedWork
  *   GET  /api/v1/schedules     → scheduler.status() (schedule fire/error counts)
  *   GET  /api/v1/spend         → spend counters + caps + window boundaries
+ *   GET  /api/v1/loops         → historical work items + byTracker/byDay aggregation
  *   GET  /api/v1/factors/candidates → internal-store candidate factors (agent output)
  *   POST /api/v1/tick          → run one orchestrator pass (dev/manual trigger)
  *
@@ -19,7 +20,7 @@
  */
 
 import type { Orchestrator } from "./orchestrator"
-import { statePayload } from "./presenter"
+import { statePayload, historyPayload } from "./presenter"
 import type { InternalStoreReader } from "./internal-store-reader"
 
 export interface OrchestratorHttpOptions {
@@ -81,6 +82,19 @@ export function startOrchestratorServer(
           weekStart: stats.weekStart.toISOString(),
           monthStart: stats.monthStart.toISOString(),
         })
+      }
+
+      if (url.pathname === "/api/v1/loops" && req.method === "GET") {
+        // Optional filters: ?state=done&tracker=factor-mining&limit=100&since=ISO
+        const stateParam = url.searchParams.get("state")
+        const tracker = url.searchParams.get("tracker") ?? undefined
+        const since = url.searchParams.get("since") ?? undefined
+        const limitParam = url.searchParams.get("limit")
+        const limit = limitParam ? Number(limitParam) : undefined
+        const states = stateParam ? stateParam.split(",").map((s) => s.trim()).filter(Boolean) : undefined
+        return jsonResponse(
+          historyPayload(orch.store, { states: states as never, tracker, since, limit }),
+        )
       }
 
       if (url.pathname === "/api/v1/factors/candidates" && req.method === "GET") {

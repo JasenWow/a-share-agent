@@ -17,11 +17,14 @@ export { runWork } from "./agent-runner"
 export type { RunOpts, RunOutcome } from "./agent-runner"
 
 export { StateStore } from "./state-store"
-export type { IStateStore } from "./state-store"
+export type { IStateStore, HistoryQuery } from "./state-store"
+export { DEFAULT_HISTORY_STATES, DEFAULT_HISTORY_LIMIT } from "./state-store"
 export { SqliteStateStore } from "./sqlite-store"
 export type { SqliteStateStoreOptions } from "./sqlite-store"
 
 export { statePayload } from "./presenter"
+export { historyPayload, deriveTracker, deriveDay } from "./presenter"
+export type { HistoryPayload, HistoryBucket, HistoryPayloadOptions } from "./presenter"
 export type { StatePayload } from "./presenter"
 
 export { startOrchestratorServer } from "./http"

@@ -63,6 +63,30 @@ export interface TickOutcome {
   outcomes: Record<RunState, number>
 }
 
+// --- History (/loops view) shapes (mirror orchestrator/src/presenter.ts) ---
+
+export interface HistoryBucket {
+  done: number
+  failed: number
+  retrying: number
+  total: number
+}
+
+export interface HistoryPayload {
+  generatedAt: string
+  items: TrackedWork[]
+  byTracker: Record<string, HistoryBucket>
+  byDay: Record<string, HistoryBucket>
+  totals: HistoryBucket
+}
+
+export interface HistoryQuery {
+  state?: RunState
+  tracker?: string
+  since?: string
+  limit?: number
+}
+
 // --- SWR key generators ---
 
 export function getOrchestrationStateKey() {
@@ -79,6 +103,16 @@ export function getOrchestrationSchedulesKey() {
 
 export function getOrchestrationSpendKey() {
   return `${ORCHESTRATOR_URL}/api/v1/spend`
+}
+
+export function getLoopsHistoryKey(opts: HistoryQuery = {}) {
+  const params = new URLSearchParams()
+  if (opts.state) params.set("state", opts.state)
+  if (opts.tracker) params.set("tracker", opts.tracker)
+  if (opts.since) params.set("since", opts.since)
+  if (opts.limit) params.set("limit", String(opts.limit))
+  const qs = params.toString()
+  return `${ORCHESTRATOR_URL}/api/v1/loops${qs ? `?${qs}` : ""}`
 }
 
 // --- Fetchers ---
@@ -115,6 +149,10 @@ export async function getOrchestrationSchedules(): Promise<{
 
 export async function getOrchestrationSpend(): Promise<SpendPayload> {
   return (await fetchJson(getOrchestrationSpendKey())) as SpendPayload
+}
+
+export async function getLoopsHistory(opts: HistoryQuery = {}): Promise<HistoryPayload> {
+  return (await fetchJson(getLoopsHistoryKey(opts))) as HistoryPayload
 }
 
 export async function triggerTick(trackers?: string[]): Promise<TickOutcome> {
